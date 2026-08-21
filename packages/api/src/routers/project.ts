@@ -12,6 +12,16 @@ export const projectRouter = router({
       });
     }),
 
+  listMembers: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const members = await ctx.db.query.projectMembers.findMany({
+        where: (pm, { eq }) => eq(pm.projectId, input.projectId),
+        with: { user: true },
+      });
+      return members.map((m) => m.user);
+    }),
+
   create: protectedProcedure
     .input(
       z.object({

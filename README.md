@@ -55,10 +55,6 @@ npm run db:seed
 npm run dev
 ```
 
-```
-DATABASE_URL=postgresql://[user]:[password]@[neon-host]/neondb?sslmode=require
-```
-
 ## Seed data
 
 `npm run db:seed` creates a demo org (`acme-dev`) with two users, one
@@ -85,8 +81,8 @@ Check items off as they're built. Update this file directly as work lands.
 - [x] Turborepo scaffold (`apps/web`, `apps/mobile` placeholder, `packages/api`, `packages/db`, `packages/ui`)
 - [x] Drizzle schema (orgs, projects, epics, sprints, boards, columns, tasks, comments, attachments, activity, GitHub integration)
 - [x] tRPC base setup (context, `protectedProcedure`, `projectProcedure` permission middleware)
-- [x] `project` router (list, create, connectGithubRepo, addMember)
-- [x] `task` router (create, move w/ fractional indexing, assign, setOwner, setTimeline, setEpic, setSprint)
+- [x] `project` router (list, listMembers, create, connectGithubRepo, addMember)
+- [x] `task` router (create, move w/ fractional indexing, assign, setOwner, setTimeline, setEpic, setSprint, getById, addComment)
 - [x] `epic` router (list, create, update)
 - [x] `sprint` router (list, create, start, complete)
 - [x] `board` router (get with columns/tasks, getFirstForProject)
@@ -107,10 +103,10 @@ Check items off as they're built. Update this file directly as work lands.
 - [x] Kanban board view (`/board`) — columns, cards, drag-and-drop, priority accent bar, epic chip, due date, owner/assignee (currently a hardcoded demo route resolving the seeded `acme-dev` org; needs real `/org/[orgSlug]/project/[projectKey]/board/[boardId]` routing)
 - [ ] Org switcher + create-org flow
 - [ ] Project list / dashboard shell (RSC-rendered nav + project list)
-- [ ] Epic list / roadmap view (epics with owner, status, target date)
-- [ ] Sprint planning view (backlog → sprint assignment, start/complete sprint)
+- [x] Epic list / roadmap view (`/epics` — epics with owner, status, target date, task count, inline create form)
+- [x] Sprint planning view (`/sprints` — sprint list, goal/dates/task count, start/complete actions, inline create form)
 - [ ] Timeline/Gantt-style view (task start/due dates across a sprint or epic)
-- [ ] Task detail panel/modal (description, comments, owner, assignee, epic, sprint, timeline, labels, subtasks)
+- [x] Task detail panel/modal (`src/components/board/task-panel.tsx` — description, comments w/ post form, owner, assignee, epic, sprint, start/due date; subtasks list is read-only so far)
 - [ ] Activity feed view
 - [ ] GitHub connect / repo-linking settings page
 - [ ] Empty states + loading skeletons
@@ -123,6 +119,8 @@ Check items off as they're built. Update this file directly as work lands.
 - [x] Drag-and-drop implementation (`@dnd-kit`) wired to `task.move`, incl. position-ghost chip showing the computed fractional index
 - [x] Framer Motion layout animations for card reorder/move
 - [ ] Epic/sprint filter controls on the board (filter cards by epic or sprint)
+- [ ] Labels editing UI on the task panel (schema supports it, no UI yet)
+- [ ] Drag tasks between backlog and a sprint from the sprint planning screen (currently sprint assignment only via the task panel dropdown)
 - [ ] Keyboard shortcuts (nice-to-have, cheap polish)
 
 ### Polish / portfolio extras

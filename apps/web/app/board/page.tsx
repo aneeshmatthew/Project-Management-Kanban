@@ -1,6 +1,7 @@
 import { appRouter } from "@repo/api";
 import { createContext } from "@/server/context";
 import { Board } from "@/components/board/board";
+import { TaskPanel } from "@/components/board/task-panel";
 import type { ColumnData } from "@/components/board/column";
 
 const DEMO_ORG_SLUG = "acme-dev";
@@ -65,6 +66,7 @@ export default async function BoardPage() {
         </h1>
       </header>
       <Board projectId={project.id} boardId={board.id} columns={columns} />
+      <TaskPanel projectId={project.id} />
     </main>
   );
 }

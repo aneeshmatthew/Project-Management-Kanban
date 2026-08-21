@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { TopNav } from "@/components/top-nav";
 import "./globals.css";
 
 const plexSans = IBM_Plex_Sans({
@@ -19,7 +20,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${plexSans.variable} ${plexMono.variable}`}>
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <TopNav />
+          {children}
+        </Providers>
       </body>
     </html>
   );

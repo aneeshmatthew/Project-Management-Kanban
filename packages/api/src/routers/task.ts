@@ -1,10 +1,30 @@
 import { z } from "zod";
 import { eq, sql } from "drizzle-orm";
 import { generateKeyBetween } from "fractional-indexing";
-import { tasks, activityEvents } from "@repo/db/schema";
+import { tasks, comments, activityEvents } from "@repo/db/schema";
 import { router, protectedProcedure, projectProcedure } from "../trpc";
 
 export const taskRouter = router({
+  getById: protectedProcedure
+    .input(z.object({ taskId: z.string().uuid() }))
+    .query(({ ctx, input }) => {
+      return ctx.db.query.tasks.findFirst({
+        where: (t, { eq }) => eq(t.id, input.taskId),
+        with: {
+          assignee: true,
+          owner: true,
+          epic: true,
+          sprint: true,
+          subtasks: true,
+          attachments: true,
+          comments: {
+            orderBy: (c, { asc }) => asc(c.createdAt),
+            with: { author: true },
+          },
+        },
+      });
+    }),
+
   listByBoard: projectProcedure
     .input(z.object({ projectId: z.string().uuid(), boardId: z.string().uuid() }))
     .query(({ ctx, input }) => {
@@ -243,5 +263,34 @@ export const taskRouter = router({
         .where(eq(tasks.id, input.taskId))
         .returning();
       return updated;
+    }),
+
+  addComment: projectProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        taskId: z.string().uuid(),
+        body: z.string().min(1).max(5000),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [comment] = await ctx.db
+        .insert(comments)
+        .values({
+          taskId: input.taskId,
+          authorId: ctx.session.userId,
+          body: input.body,
+        })
+        .returning();
+
+      await ctx.db.insert(activityEvents).values({
+        projectId: input.projectId,
+        taskId: input.taskId,
+        actorId: ctx.session.userId,
+        type: "COMMENT_ADDED",
+        payload: { commentId: comment.id },
+      });
+
+      return comment;
     }),
 });
