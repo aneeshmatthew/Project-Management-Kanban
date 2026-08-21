@@ -1,4 +1,4 @@
-# PM Tool — Developer-Focused Project Management - Kanban board
+# PM Tool — Developer-Focused Project Management
 
 A Trello/Linear-style project management tool built to showcase a modern
 full-stack TypeScript architecture: Next.js App Router + RSC, tRPC,
@@ -33,8 +33,30 @@ npm install
 cp .env.example .env   # fill in DATABASE_URL, GITHUB_APP_SLUG, GITHUB_WEBHOOK_SECRET
 npm run db:generate
 npm run db:migrate
+npm run db:seed
 npm run dev
 ```
+
+```
+DATABASE_URL=postgresql://[user]:[password]@[neon-host]/neondb?sslmode=require
+
+postgresql://neondb_owner:npg_I8pEFZWYuQv1@ep-green-sea-axwztjjr.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require
+```
+
+## Seed data
+
+`npm run db:seed` creates a demo org (`acme-dev`) with two users, one
+project, one board with four columns, six sample tasks (spread across
+columns, with priorities/assignees), and two comments. It's idempotent —
+re-running it checks for the `acme-dev` org first and skips if found.
+
+**Note:** seeded users (`owner@example.com`, `teammate@example.com`) are
+plain rows in the `users` table — they aren't linked to a real GitHub
+account, so you can't literally sign in *as* them via GitHub OAuth. To
+actually browse the seeded data as yourself, sign in once with your own
+GitHub account first, then either update the seed script to use your
+real email, or manually add yourself to `organization_members` /
+`project_members` for the `acme-dev` org via `npm run db:studio`.
 
 ---
 
@@ -50,9 +72,9 @@ Check items off as they're built. Update this file directly as work lands.
 - [x] `project` router (list, create, connectGithubRepo, addMember)
 - [x] `task` router (create, move w/ fractional indexing, assign)
 - [x] `github` router + webhook route (signature verification, issue/comment sync)
-- [ ] Auth provider chosen and wired (`apps/web/src/lib/auth.ts` referenced but not implemented)
+- [x] Auth provider chosen and wired — Auth.js v5, GitHub OAuth, JWT sessions, upsert into `users` table (`apps/web/src/lib/auth.ts`, `middleware.ts`, `/sign-in`)
 - [ ] Database migrated against a real Neon instance (`db:generate` + `db:migrate` run)
-- [ ] Seed script (sample org, project, board, columns, tasks) for local dev
+- [x] Seed script (sample org, project, board, columns, tasks) for local dev — `npm run db:seed` (idempotent, skips if demo org already exists)
 - [ ] GitHub App registered (real `GITHUB_APP_SLUG`, per-installation webhook secrets wired to `githubIntegrations.webhookSecret` instead of one global env var)
 - [ ] Real "system/GitHub" user row for comment attribution (currently stubbed)
 - [ ] Vercel project connected, Root Directory set to `apps/web`, Turborepo remote caching confirmed
