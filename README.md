@@ -82,7 +82,7 @@ Check items off as they're built. Update this file directly as work lands.
 - [x] Drizzle schema (orgs, projects, epics, sprints, boards, columns, tasks, comments, attachments, activity, GitHub integration)
 - [x] tRPC base setup (context, `protectedProcedure`, `projectProcedure` permission middleware)
 - [x] `project` router (list, listMembers, create, connectGithubRepo, addMember)
-- [x] `task` router (create, move w/ fractional indexing, assign, setOwner, setTimeline, setEpic, setSprint, setStoryPoints, getById, addComment)
+- [x] `task` router (create, move w/ fractional indexing, assign, setOwner, setTimeline, setEpic, setSprint, setStoryPoints, setLabels, getById, addComment)
 - [x] `epic` router (list, create, update)
 - [x] `sprint` router (list, planningBoard, burndown, create, start, complete)
 - [x] `board` router (get with columns/tasks, getFirstForProject)
@@ -120,7 +120,7 @@ Check items off as they're built. Update this file directly as work lands.
 - [x] Drag-and-drop implementation (`@dnd-kit`) wired to `task.move`, incl. position-ghost chip showing the computed fractional index
 - [x] Framer Motion layout animations for card reorder/move
 - [ ] Epic/sprint filter controls on the board (filter cards by epic or sprint)
-- [ ] Labels editing UI on the task panel (schema supports it, no UI yet)
+- [x] Labels editing UI on the task panel (add via input + Enter, remove via chip's × button, `task.setLabels`)
 - [x] Drag tasks between backlog and a sprint (`/backlog` — `sprint.planningBoard` query, `use-assign-sprint.ts` optimistic hook, `PlanningBoard`/`PlanningCard` components)
 - [ ] Keyboard shortcuts (nice-to-have, cheap polish)
 
@@ -141,7 +141,7 @@ Identified but not yet built — roughly ordered by portfolio impact:
 - [x] Sprint burndown/velocity chart (`/burndown` — `sprint.burndown` query, recharts line chart, ideal-vs-actual; completion date is approximated from `task.updatedAt` when the task's current column is "Done" — see the caveat noted in `sprint.ts`, a task moved back out of Done loses its true completion date under this heuristic)
 - [ ] Backlog ordering (explicit priority order, not just creation order)
 - [ ] Epic progress bar (done/total, not just task count)
-- [ ] Labels/tags UI (schema supports it, no add/filter UI)
+- [x] Labels/tags UI (deterministic per-label color, add/remove in task panel, filter bar on the board — OR-match across selected labels)
 - [ ] Real-time presence + live board sync across users
 - [ ] @mentions + notifications
 - [ ] Search and quick filters (my tasks, unassigned, by label)

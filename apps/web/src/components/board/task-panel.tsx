@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { trpc } from "@/lib/trpc-client";
 import { useBoardStore } from "@/stores/board-store";
+import { labelColor } from "@/lib/labels";
 import { Button } from "@repo/ui";
 
 export function TaskPanel({ projectId }: { projectId: string }) {
@@ -67,6 +68,8 @@ function TaskPanelContent({
   const setSprint = trpc.task.setSprint.useMutation({ onSuccess: invalidate });
   const setTimeline = trpc.task.setTimeline.useMutation({ onSuccess: invalidate });
   const setStoryPoints = trpc.task.setStoryPoints.useMutation({ onSuccess: invalidate });
+  const setLabels = trpc.task.setLabels.useMutation({ onSuccess: invalidate });
+  const [labelInput, setLabelInput] = useState("");
   const addComment = trpc.task.addComment.useMutation({
     onSuccess: () => {
       setCommentBody("");
@@ -220,6 +223,57 @@ function TaskPanelContent({
               className="w-full rounded-md border border-border bg-canvas px-2 py-1.5 font-mono text-xs text-ink"
             />
           </Field>
+        </div>
+
+        {/* --- Labels --- */}
+        <div className="mt-5">
+          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted">
+            Labels
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {task.labels.map((label) => (
+              <span
+                key={label}
+                className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-canvas"
+                style={{ backgroundColor: labelColor(label) }}
+              >
+                {label}
+                <button
+                  onClick={() =>
+                    setLabels.mutate({
+                      projectId,
+                      taskId,
+                      labels: task.labels.filter((l) => l !== label),
+                    })
+                  }
+                  className="hover:opacity-70"
+                  aria-label={`Remove label ${label}`}
+                >
+                  <X size={10} />
+                </button>
+              </span>
+            ))}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const trimmed = labelInput.trim();
+                if (!trimmed || task.labels.includes(trimmed)) return;
+                setLabels.mutate({
+                  projectId,
+                  taskId,
+                  labels: [...task.labels, trimmed],
+                });
+                setLabelInput("");
+              }}
+            >
+              <input
+                value={labelInput}
+                onChange={(e) => setLabelInput(e.target.value)}
+                placeholder="+ label"
+                className="w-20 rounded-md border border-border bg-canvas px-2 py-0.5 text-[11px] text-ink placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-priority-medium"
+              />
+            </form>
+          </div>
         </div>
 
         {/* --- Subtasks --- */}

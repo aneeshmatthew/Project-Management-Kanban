@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { MessageSquare } from "lucide-react";
 import { cva } from "class-variance-authority";
 import { useBoardStore } from "@/stores/board-store";
+import { labelColor } from "@/lib/labels";
 
 const priorityBar = cva("absolute left-0 top-0 h-full w-1 rounded-l-md", {
   variants: {
@@ -30,6 +31,7 @@ export interface TaskCardData {
   epic: { name: string; color: string | null } | null;
   storyPoints: number | null;
   dueDate: string | null;
+  labels: string[];
   commentCount: number;
 }
 
@@ -67,6 +69,20 @@ export function TaskCard({ task }: { task: TaskCardData }) {
       )}
 
       <p className="text-sm font-medium leading-snug text-ink">{task.title}</p>
+
+      {task.labels.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {task.labels.map((label) => (
+            <span
+              key={label}
+              className="rounded px-1.5 py-0.5 text-[9px] font-medium text-canvas"
+              style={{ backgroundColor: labelColor(label) }}
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="mt-3 flex items-center justify-between">
         <div className="flex flex-col gap-0.5">

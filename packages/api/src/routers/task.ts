@@ -268,6 +268,23 @@ export const taskRouter = router({
       return updated;
     }),
 
+  setLabels: projectProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        taskId: z.string().uuid(),
+        labels: z.array(z.string().min(1).max(40)).max(20),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [updated] = await ctx.db
+        .update(tasks)
+        .set({ labels: input.labels, updatedAt: new Date() })
+        .where(eq(tasks.id, input.taskId))
+        .returning();
+      return updated;
+    }),
+
   setStoryPoints: projectProcedure
     .input(
       z.object({

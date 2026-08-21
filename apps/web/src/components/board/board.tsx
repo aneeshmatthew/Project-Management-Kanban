@@ -17,6 +17,7 @@ import { Column, type ColumnData } from "./column";
 import { TaskCard } from "./task-card";
 import { useMoveTask } from "@/hooks/use-move-task";
 import { useBoardStore } from "@/stores/board-store";
+import { labelColor } from "@/lib/labels";
 
 export function Board({
   projectId,
@@ -32,18 +33,44 @@ export function Board({
   const setDragTarget = useBoardStore((s) => s.setDragTarget);
   const setActiveTask = useBoardStore((s) => s.setActiveTask);
   const activeTaskId = useBoardStore((s) => s.activeTaskId);
+  const labelFilters = useBoardStore((s) => s.labelFilters);
+  const toggleLabelFilter = useBoardStore((s) => s.toggleLabelFilter);
+  const clearLabelFilters = useBoardStore((s) => s.clearLabelFilters);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
   );
 
-  const taskLookup = useMemo(() => {
-    const map = new Map<string, { task: (typeof columns)[number]["tasks"][number]; columnId: string }>();
+  // All labels present anywhere on the board — the filter bar's option set
+  // stays stable even once a filter is applied and cards disappear.
+  const allLabels = useMemo(() => {
+    const set = new Set<string>();
     for (const col of columns) {
+      for (const task of col.tasks) {
+        for (const label of task.labels) set.add(label);
+      }
+    }
+    return Array.from(set).sort();
+  }, [columns]);
+
+  const filteredColumns = useMemo(() => {
+    if (labelFilters.length === 0) return columns;
+    return columns.map((col) => ({
+      ...col,
+      tasks: col.tasks.filter((t) => t.labels.some((l) => labelFilters.includes(l))),
+    }));
+  }, [columns, labelFilters]);
+
+  const taskLookup = useMemo(() => {
+    const map = new Map<
+      string,
+      { task: (typeof filteredColumns)[number]["tasks"][number]; columnId: string }
+    >();
+    for (const col of filteredColumns) {
       for (const task of col.tasks) map.set(task.id, { task, columnId: col.id });
     }
     return map;
-  }, [columns]);
+  }, [filteredColumns]);
 
   function handleDragStart(event: DragStartEvent) {
     setActiveTask(String(event.active.id));
@@ -56,7 +83,7 @@ export function Board({
     const overEntry = taskLookup.get(String(over.id));
     const targetColumnId = overEntry?.columnId ?? String(over.id); // over.id may be a column (empty drop zone) or a task
 
-    const columnTasks = columns.find((c) => c.id === targetColumnId)?.tasks ?? [];
+    const columnTasks = filteredColumns.find((c) => c.id === targetColumnId)?.tasks ?? [];
     const overIndex = columnTasks.findIndex((t) => t.id === over.id);
 
     const before = overIndex > 0 ? columnTasks[overIndex - 1].position : null;
@@ -97,8 +124,39 @@ export function Board({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
+      {allLabels.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-4 py-2">
+          <span className="font-mono text-[11px] text-muted">Filter:</span>
+          {allLabels.map((label) => {
+            const active = labelFilters.includes(label);
+            return (
+              <button
+                key={label}
+                onClick={() => toggleLabelFilter(label)}
+                className="rounded px-1.5 py-0.5 text-[10px] font-medium transition-opacity"
+                style={{
+                  backgroundColor: labelColor(label),
+                  color: "#0B0E14",
+                  opacity: active ? 1 : 0.35,
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+          {labelFilters.length > 0 && (
+            <button
+              onClick={clearLabelFilters}
+              className="font-mono text-[10px] text-muted underline hover:text-ink"
+            >
+              clear
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex gap-4 overflow-x-auto p-4">
-        {columns.map((col) => (
+        {filteredColumns.map((col) => (
           <Column key={col.id} column={col} />
         ))}
       </div>
