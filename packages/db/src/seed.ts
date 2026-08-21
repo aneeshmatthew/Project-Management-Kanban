@@ -129,6 +129,7 @@ async function main() {
     title: string;
     description: string;
     priority: "NONE" | "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+    storyPoints?: number;
     assigneeId?: string;
     ownerId?: string;
     dueDate?: Date;
@@ -138,6 +139,7 @@ async function main() {
       title: "Design activity feed UI",
       description: "Sketch the feed layout for project-level activity events.",
       priority: "LOW",
+      storyPoints: 2,
       ownerId: owner.id,
     },
     {
@@ -145,6 +147,7 @@ async function main() {
       title: "Add keyboard shortcuts",
       description: "Cmd+K command palette, j/k navigation on the board.",
       priority: "LOW",
+      storyPoints: 3,
       ownerId: owner.id,
     },
     {
@@ -152,6 +155,7 @@ async function main() {
       title: "Build sign-in page",
       description: "GitHub OAuth via Auth.js, redirect to callbackUrl after login.",
       priority: "HIGH",
+      storyPoints: 5,
       assigneeId: owner.id,
       ownerId: owner.id,
       dueDate: new Date(now.getTime() + 1000 * 60 * 60 * 24 * 3),
@@ -161,6 +165,7 @@ async function main() {
       title: "Set up GitHub App webhook",
       description: "Register the GitHub App, subscribe to issues + issue_comment.",
       priority: "MEDIUM",
+      storyPoints: 3,
       assigneeId: teammate.id,
       ownerId: owner.id,
       dueDate: new Date(now.getTime() + 1000 * 60 * 60 * 24 * 5),
@@ -170,6 +175,7 @@ async function main() {
       title: "Kanban board drag-and-drop",
       description: "Wire task.move to drag events with optimistic updates.",
       priority: "URGENT",
+      storyPoints: 8,
       assigneeId: owner.id,
       ownerId: owner.id,
       dueDate: new Date(now.getTime() + 1000 * 60 * 60 * 24 * 2),
@@ -179,6 +185,7 @@ async function main() {
       title: "Drizzle schema + migrations",
       description: "Org, project, board, column, task, comment, activity tables.",
       priority: "MEDIUM",
+      storyPoints: 5,
       assigneeId: owner.id,
       ownerId: owner.id,
     },
@@ -208,6 +215,7 @@ async function main() {
         description: t.description,
         position,
         priority: t.priority,
+        storyPoints: t.storyPoints,
         assigneeId: t.assigneeId,
         ownerId: t.ownerId,
         epicId: epic.id,

@@ -50,6 +50,7 @@ export default async function SprintsPage() {
               startDate: new Date(sprint.startDate).toLocaleDateString(),
               endDate: new Date(sprint.endDate).toLocaleDateString(),
               taskCount: sprint.tasks.length,
+              totalPoints: sprint.tasks.reduce((sum, t) => sum + (t.storyPoints ?? 0), 0),
             }}
           />
         ))}

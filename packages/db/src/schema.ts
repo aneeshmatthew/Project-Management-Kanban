@@ -276,6 +276,7 @@ export const tasks = pgTable(
       onDelete: "set null",
     }),
     priority: taskPriorityEnum("priority").notNull().default("NONE"),
+    storyPoints: integer("story_points"),
     startDate: timestamp("start_date"),
     dueDate: timestamp("due_date"),
     labels: jsonb("labels").$type<string[]>().notNull().default([]),

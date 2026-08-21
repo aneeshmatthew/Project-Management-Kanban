@@ -5,6 +5,8 @@ const links = [
   { href: "/backlog", label: "Backlog" },
   { href: "/epics", label: "Epics" },
   { href: "/sprints", label: "Sprints" },
+  { href: "/burndown", label: "Burndown" },
+  { href: "/activity", label: "Activity" },
 ];
 
 export function TopNav() {

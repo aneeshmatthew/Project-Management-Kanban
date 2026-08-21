@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { eq } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 import { sprints, activityEvents } from "@repo/db/schema";
 import { router, protectedProcedure, projectProcedure } from "../trpc";
+
+const DAY_MS = 1000 * 60 * 60 * 24;
 
 export const sprintRouter = router({
   list: protectedProcedure
@@ -41,6 +44,67 @@ export const sprintRouter = router({
       ]);
 
       return { backlog: backlogTasks, sprints: planningSprints };
+    }),
+
+  /**
+   * Ideal-vs-actual burndown series for a sprint.
+   *
+   * "Actual completed" is approximated as: a task counts as done on the
+   * day of its `updatedAt` IF its current column is named "Done". This is
+   * a reasonable heuristic for a hobby project but has a real limitation
+   * worth knowing: if a task is moved into Done and later moved back out,
+   * we lose the historical completion date (updatedAt reflects the most
+   * recent change, not the Done-entry date). A fully accurate burndown
+   * would derive completion dates from `activityEvents` of type
+   * TASK_MOVED by inspecting each event's `toColumnId` over time, rather
+   * than trusting the task's current state — worth doing before this
+   * feeds a real sprint retro.
+   */
+  burndown: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid(), sprintId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const sprint = await ctx.db.query.sprints.findFirst({
+        where: (s, { eq }) => eq(s.id, input.sprintId),
+      });
+
+      if (!sprint) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const sprintTasks = await ctx.db.query.tasks.findMany({
+        where: (t, { eq }) => eq(t.sprintId, input.sprintId),
+        with: { column: true },
+      });
+
+      const totalPoints = sprintTasks.reduce((sum, t) => sum + (t.storyPoints ?? 0), 0);
+
+      const start = new Date(sprint.startDate);
+      const end = new Date(sprint.endDate);
+      const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / DAY_MS));
+      const today = new Date();
+      const lastDay = today < end ? today : end;
+
+      const series: { date: string; ideal: number; actual: number }[] = [];
+
+      for (let d = 0; d <= totalDays; d++) {
+        const date = new Date(start.getTime() + d * DAY_MS);
+        if (date > lastDay) break;
+
+        const idealRemaining = Math.max(0, totalPoints * (1 - d / totalDays));
+
+        const completedPoints = sprintTasks
+          .filter(
+            (t) =>
+              t.column?.name === "Done" && t.storyPoints && new Date(t.updatedAt) <= date
+          )
+          .reduce((sum, t) => sum + (t.storyPoints ?? 0), 0);
+
+        series.push({
+          date: date.toISOString().slice(0, 10),
+          ideal: Math.round(idealRemaining),
+          actual: totalPoints - completedPoints,
+        });
+      }
+
+      return { sprint, totalPoints, series };
     }),
 
   create: projectProcedure

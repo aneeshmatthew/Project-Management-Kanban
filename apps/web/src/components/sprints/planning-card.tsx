@@ -21,6 +21,7 @@ export interface PlanningCardData {
   priority: "NONE" | "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   projectKey: string;
   taskNumber: number;
+  storyPoints: number | null;
   assignee: { name: string | null } | null;
   epic: { name: string; color: string | null } | null;
 }
@@ -57,6 +58,11 @@ export function PlanningCard({ task }: { task: PlanningCardData }) {
       <span className="shrink-0 font-mono text-[10px] text-muted">
         {task.projectKey}-{task.taskNumber}
       </span>
+      {task.storyPoints != null && (
+        <span className="shrink-0 rounded border border-border px-1 font-mono text-[9px] text-muted">
+          {task.storyPoints}
+        </span>
+      )}
       {task.assignee && (
         <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-border font-mono text-[9px] text-ink">
           {task.assignee.name?.[0]?.toUpperCase() ?? "?"}

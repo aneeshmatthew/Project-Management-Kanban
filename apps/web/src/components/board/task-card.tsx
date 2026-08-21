@@ -28,6 +28,7 @@ export interface TaskCardData {
   assignee: { name: string | null; avatarUrl: string | null } | null;
   owner: { name: string | null } | null;
   epic: { name: string; color: string | null } | null;
+  storyPoints: number | null;
   dueDate: string | null;
   commentCount: number;
 }
@@ -72,6 +73,9 @@ export function TaskCard({ task }: { task: TaskCardData }) {
           <span className="font-mono text-xs text-muted">
             {task.projectKey}-{task.taskNumber}
           </span>
+          {task.storyPoints != null && (
+            <span className="font-mono text-[10px] text-muted">{task.storyPoints} pt</span>
+          )}
           {task.dueDate && (
             <span className="font-mono text-[10px] text-muted">Due {task.dueDate}</span>
           )}

@@ -66,6 +66,7 @@ function TaskPanelContent({
   const setEpic = trpc.task.setEpic.useMutation({ onSuccess: invalidate });
   const setSprint = trpc.task.setSprint.useMutation({ onSuccess: invalidate });
   const setTimeline = trpc.task.setTimeline.useMutation({ onSuccess: invalidate });
+  const setStoryPoints = trpc.task.setStoryPoints.useMutation({ onSuccess: invalidate });
   const addComment = trpc.task.addComment.useMutation({
     onSuccess: () => {
       setCommentBody("");
@@ -170,6 +171,24 @@ function TaskPanelContent({
                 </option>
               ))}
             </select>
+          </Field>
+
+          <Field label="Story points">
+            <input
+              type="number"
+              min={0}
+              max={100}
+              defaultValue={task.storyPoints ?? ""}
+              onBlur={(e) =>
+                setStoryPoints.mutate({
+                  projectId,
+                  taskId,
+                  storyPoints: e.target.value === "" ? null : Number(e.target.value),
+                })
+              }
+              placeholder="—"
+              className="w-full rounded-md border border-border bg-canvas px-2 py-1.5 font-mono text-xs text-ink"
+            />
           </Field>
 
           <Field label="Start date">

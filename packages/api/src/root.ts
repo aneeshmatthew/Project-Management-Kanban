@@ -6,6 +6,7 @@ import { boardRouter } from "./routers/board";
 import { organizationRouter } from "./routers/organization";
 import { epicRouter } from "./routers/epic";
 import { sprintRouter } from "./routers/sprint";
+import { activityRouter } from "./routers/activity";
 
 export const appRouter = router({
   project: projectRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   organization: organizationRouter,
   epic: epicRouter,
   sprint: sprintRouter,
+  activity: activityRouter,
 });
 
 export type AppRouter = typeof appRouter;

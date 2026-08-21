@@ -82,11 +82,12 @@ Check items off as they're built. Update this file directly as work lands.
 - [x] Drizzle schema (orgs, projects, epics, sprints, boards, columns, tasks, comments, attachments, activity, GitHub integration)
 - [x] tRPC base setup (context, `protectedProcedure`, `projectProcedure` permission middleware)
 - [x] `project` router (list, listMembers, create, connectGithubRepo, addMember)
-- [x] `task` router (create, move w/ fractional indexing, assign, setOwner, setTimeline, setEpic, setSprint, getById, addComment)
+- [x] `task` router (create, move w/ fractional indexing, assign, setOwner, setTimeline, setEpic, setSprint, setStoryPoints, getById, addComment)
 - [x] `epic` router (list, create, update)
-- [x] `sprint` router (list, planningBoard, create, start, complete)
+- [x] `sprint` router (list, planningBoard, burndown, create, start, complete)
 - [x] `board` router (get with columns/tasks, getFirstForProject)
 - [x] `organization` router (getBySlug)
+- [x] `activity` router (list)
 - [x] `github` router + webhook route (signature verification, issue/comment sync)
 - [x] Auth provider chosen and wired — Auth.js v5, GitHub OAuth, JWT sessions, upsert into `users` table (`apps/web/src/lib/auth.ts`, `middleware.ts`, `/sign-in`)
 - [ ] Database migrated against a real Neon instance (`db:generate` + `db:migrate` run)
@@ -107,7 +108,7 @@ Check items off as they're built. Update this file directly as work lands.
 - [x] Sprint planning view (`/sprints` — sprint list, goal/dates/task count, start/complete actions, inline create form)
 - [ ] Timeline/Gantt-style view (task start/due dates across a sprint or epic)
 - [x] Task detail panel/modal (`src/components/board/task-panel.tsx` — description, comments w/ post form, owner, assignee, epic, sprint, start/due date; subtasks list is read-only so far)
-- [ ] Activity feed view
+- [x] Activity feed view (`/activity` — chronological, per-type icon, human-readable event descriptions via `describeActivityEvent`)
 - [ ] GitHub connect / repo-linking settings page
 - [ ] Empty states + loading skeletons
 
@@ -136,8 +137,8 @@ Identified but not yet built — roughly ordered by portfolio impact:
 - [ ] WIP limits actually enforced on drop (currently just displayed)
 - [ ] Column management UI (create/rename/reorder/delete columns and boards)
 - [ ] Quick-add task inline on the board (type a title, hit enter)
-- [ ] Story points / estimation on tasks
-- [ ] Sprint burndown/velocity chart
+- [x] Story points / estimation on tasks (`storyPoints` column, editable in the task panel, shown on Kanban and planning cards)
+- [x] Sprint burndown/velocity chart (`/burndown` — `sprint.burndown` query, recharts line chart, ideal-vs-actual; completion date is approximated from `task.updatedAt` when the task's current column is "Done" — see the caveat noted in `sprint.ts`, a task moved back out of Done loses its true completion date under this heuristic)
 - [ ] Backlog ordering (explicit priority order, not just creation order)
 - [ ] Epic progress bar (done/total, not just task count)
 - [ ] Labels/tags UI (schema supports it, no add/filter UI)
@@ -146,7 +147,6 @@ Identified but not yet built — roughly ordered by portfolio impact:
 - [ ] Search and quick filters (my tasks, unassigned, by label)
 - [ ] Table/list view as an alternative to the board
 - [ ] Undo, and archive-vs-delete distinction (deletes are currently hard deletes)
-- [ ] Rendered activity feed (events are logged to `activityEvents` but never displayed)
 - [ ] Large-board virtualization
 
 

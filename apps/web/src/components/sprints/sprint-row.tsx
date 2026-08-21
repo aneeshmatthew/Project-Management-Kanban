@@ -12,6 +12,7 @@ export interface SprintRowData {
   startDate: string;
   endDate: string;
   taskCount: number;
+  totalPoints: number;
 }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -47,7 +48,7 @@ export function SprintRow({
           {sprint.goal && <p className="mt-1 max-w-md text-xs text-muted">{sprint.goal}</p>}
           <p className="mt-2 font-mono text-[11px] text-muted">
             {sprint.startDate} – {sprint.endDate} · {sprint.taskCount} task
-            {sprint.taskCount === 1 ? "" : "s"}
+            {sprint.taskCount === 1 ? "" : "s"} · {sprint.totalPoints} pts
           </p>
         </div>
 

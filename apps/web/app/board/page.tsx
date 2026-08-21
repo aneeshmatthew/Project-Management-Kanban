@@ -52,6 +52,7 @@ export default async function BoardPage() {
         : null,
       owner: task.owner ? { name: task.owner.name } : null,
       epic: task.epic ? { name: task.epic.name, color: task.epic.color } : null,
+      storyPoints: task.storyPoints,
       dueDate: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : null,
       commentCount: task.comments.length,
     })),

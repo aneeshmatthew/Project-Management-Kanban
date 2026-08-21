@@ -21,6 +21,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "framer-motion": "^11.15.0",
     "lucide-react": "^0.469.0",
+    "recharts": "^2.15.0",
     "fractional-indexing": "^3.2.0",
     "zustand": "^5.0.2",
     "next": "^15.1.3",

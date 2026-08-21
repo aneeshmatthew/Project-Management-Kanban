@@ -15,6 +15,7 @@ export const taskRouter = router({
           owner: true,
           epic: true,
           sprint: true,
+          column: true,
           subtasks: true,
           attachments: true,
           comments: {
@@ -50,6 +51,7 @@ export const taskRouter = router({
         ownerId: z.string().uuid().optional(),
         assigneeId: z.string().uuid().optional(),
         priority: z.enum(["NONE", "LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
+        storyPoints: z.number().int().min(0).max(100).optional(),
         startDate: z.date().optional(),
         dueDate: z.date().optional(),
         // Position of the last task in the column, if any — used to
@@ -83,6 +85,7 @@ export const taskRouter = router({
           ownerId: input.ownerId,
           assigneeId: input.assigneeId,
           priority: input.priority,
+          storyPoints: input.storyPoints,
           startDate: input.startDate,
           dueDate: input.dueDate,
           position,
@@ -260,6 +263,23 @@ export const taskRouter = router({
       const [updated] = await ctx.db
         .update(tasks)
         .set({ sprintId: input.sprintId, updatedAt: new Date() })
+        .where(eq(tasks.id, input.taskId))
+        .returning();
+      return updated;
+    }),
+
+  setStoryPoints: projectProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        taskId: z.string().uuid(),
+        storyPoints: z.number().int().min(0).max(100).nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [updated] = await ctx.db
+        .update(tasks)
+        .set({ storyPoints: input.storyPoints, updatedAt: new Date() })
         .where(eq(tasks.id, input.taskId))
         .returning();
       return updated;
