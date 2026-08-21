@@ -35,6 +35,18 @@ export const taskPriorityEnum = pgEnum("task_priority", [
   "URGENT",
 ]);
 
+export const sprintStatusEnum = pgEnum("sprint_status", [
+  "PLANNED",
+  "ACTIVE",
+  "COMPLETED",
+]);
+
+export const epicStatusEnum = pgEnum("epic_status", [
+  "PLANNED",
+  "IN_PROGRESS",
+  "DONE",
+]);
+
 export const activityTypeEnum = pgEnum("activity_type", [
   "TASK_CREATED",
   "TASK_MOVED",
@@ -46,6 +58,9 @@ export const activityTypeEnum = pgEnum("activity_type", [
   "GITHUB_SYNCED",
   "MEMBER_ADDED",
   "MEMBER_REMOVED",
+  "EPIC_CREATED",
+  "SPRINT_STARTED",
+  "SPRINT_COMPLETED",
 ]);
 
 /* -------------------------------------------------------------------------- */
@@ -148,6 +163,54 @@ export const projectMembers = pgTable(
 );
 
 /* -------------------------------------------------------------------------- */
+/*  Epics — larger initiatives that group multiple tasks                      */
+/* -------------------------------------------------------------------------- */
+
+export const epics = pgTable(
+  "epics",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description"),
+    status: epicStatusEnum("status").notNull().default("PLANNED"),
+    color: varchar("color", { length: 20 }), // hex, for board/timeline chips
+    ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
+    startDate: timestamp("start_date"),
+    targetDate: timestamp("target_date"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    projectIdx: index("epics_project_idx").on(t.projectId),
+  })
+);
+
+/* -------------------------------------------------------------------------- */
+/*  Sprints — time-boxed iterations                                           */
+/* -------------------------------------------------------------------------- */
+
+export const sprints = pgTable(
+  "sprints",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 255 }).notNull(), // "Sprint 12"
+    goal: text("goal"),
+    status: sprintStatusEnum("status").notNull().default("PLANNED"),
+    startDate: timestamp("start_date").notNull(),
+    endDate: timestamp("end_date").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    projectIdx: index("sprints_project_idx").on(t.projectId),
+  })
+);
+
+/* -------------------------------------------------------------------------- */
 /*  Boards + Columns                                                          */
 /* -------------------------------------------------------------------------- */
 
@@ -189,18 +252,31 @@ export const tasks = pgTable(
     projectId: uuid("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    // Sequential per-project number for human-readable keys (e.g. "PMT-42").
+    // Assigned at insert time from a per-project counter — see task.create.
+    number: integer("number").notNull(),
     columnId: uuid("column_id")
       .notNull()
       .references(() => columns.id, { onDelete: "cascade" }),
+    epicId: uuid("epic_id").references(() => epics.id, { onDelete: "set null" }),
+    sprintId: uuid("sprint_id").references(() => sprints.id, { onDelete: "set null" }),
     parentTaskId: uuid("parent_task_id"),
     title: varchar("title", { length: 500 }).notNull(),
     description: text("description"),
     // Fractional index within the column, same technique as columns.position.
     position: varchar("position", { length: 255 }).notNull(),
+    // The individual doing the work.
     assigneeId: uuid("assignee_id").references(() => users.id, {
       onDelete: "set null",
     }),
+    // The accountable owner from a PM's perspective — often the same
+    // person as assignee on small teams, but kept distinct so a PM can
+    // stay the owner of a task while delegating the work.
+    ownerId: uuid("owner_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     priority: taskPriorityEnum("priority").notNull().default("NONE"),
+    startDate: timestamp("start_date"),
     dueDate: timestamp("due_date"),
     labels: jsonb("labels").$type<string[]>().notNull().default([]),
     githubIssueId: varchar("github_issue_id", { length: 255 }),
@@ -212,7 +288,14 @@ export const tasks = pgTable(
     columnIdx: index("tasks_column_idx").on(t.columnId),
     projectIdx: index("tasks_project_idx").on(t.projectId),
     assigneeIdx: index("tasks_assignee_idx").on(t.assigneeId),
+    ownerIdx: index("tasks_owner_idx").on(t.ownerId),
+    epicIdx: index("tasks_epic_idx").on(t.epicId),
+    sprintIdx: index("tasks_sprint_idx").on(t.sprintId),
     parentTaskFk: index("tasks_parent_task_idx").on(t.parentTaskId),
+    projectNumberUnique: uniqueIndex("tasks_project_number_unique").on(
+      t.projectId,
+      t.number
+    ),
   })
 );
 
@@ -288,7 +371,9 @@ export const activityEvents = pgTable(
 export const usersRelations = relations(users, ({ many }) => ({
   organizationMemberships: many(organizationMembers),
   projectMemberships: many(projectMembers),
-  assignedTasks: many(tasks),
+  assignedTasks: many(tasks, { relationName: "assignee" }),
+  ownedTasks: many(tasks, { relationName: "owner" }),
+  ownedEpics: many(epics),
   comments: many(comments),
 }));
 
@@ -323,6 +408,8 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   members: many(projectMembers),
   boards: many(boards),
   tasks: many(tasks),
+  epics: many(epics),
+  sprints: many(sprints),
   activityEvents: many(activityEvents),
 }));
 
@@ -365,9 +452,23 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
     fields: [tasks.columnId],
     references: [columns.id],
   }),
+  epic: one(epics, {
+    fields: [tasks.epicId],
+    references: [epics.id],
+  }),
+  sprint: one(sprints, {
+    fields: [tasks.sprintId],
+    references: [sprints.id],
+  }),
   assignee: one(users, {
     fields: [tasks.assigneeId],
     references: [users.id],
+    relationName: "assignee",
+  }),
+  owner: one(users, {
+    fields: [tasks.ownerId],
+    references: [users.id],
+    relationName: "owner",
   }),
   parentTask: one(tasks, {
     fields: [tasks.parentTaskId],
@@ -378,6 +479,26 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   comments: many(comments),
   attachments: many(attachments),
   activityEvents: many(activityEvents),
+}));
+
+export const epicsRelations = relations(epics, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [epics.projectId],
+    references: [projects.id],
+  }),
+  owner: one(users, {
+    fields: [epics.ownerId],
+    references: [users.id],
+  }),
+  tasks: many(tasks),
+}));
+
+export const sprintsRelations = relations(sprints, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [sprints.projectId],
+    references: [projects.id],
+  }),
+  tasks: many(tasks),
 }));
 
 export const commentsRelations = relations(comments, ({ one }) => ({

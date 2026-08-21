@@ -1,9 +1,13 @@
-# PM Tool — Developer-Focused Project Management
+# PM Tool — Project Management for Real Teams
 
-A Trello/Linear-style project management tool built to showcase a modern
-full-stack TypeScript architecture: Next.js App Router + RSC, tRPC,
-Drizzle/Postgres, and a GitHub sync integration that mirrors issues and
-comments into tasks in real time via webhooks.
+A Linear/Jira-style project management tool for project managers running
+sprints and epics — full planning hierarchy (Epic → Sprint → Task), owner
+vs. assignee distinction, and timelines — with a Kanban board as the daily
+working view. Built to showcase a modern full-stack TypeScript
+architecture: Next.js App Router + RSC, tRPC, Drizzle/Postgres. Optional
+GitHub sync mirrors issues/comments into tasks for teams with engineers
+on them, but the tool itself is built for how PMs plan, not just how
+developers track tickets.
 
 ## Stack
 
@@ -13,6 +17,20 @@ comments into tasks in real time via webhooks.
 - **DB:** PostgreSQL (Neon) via Drizzle ORM
 - **UI:** Tailwind CSS, class-variance-authority, Framer Motion
 - **Mobile:** deferred — see `apps/mobile/README.md`
+
+## Planning model
+
+```
+Epic (initiative, has an owner + target date)
+  └─ Sprint (time-boxed iteration, start/end dates, goal)
+       └─ Task (priority, owner, assignee, start/due date, status via column)
+```
+
+Epics and Sprints are independent of each other and both attach directly
+to a Task — a task can belong to an epic, a sprint, both, or neither.
+This mirrors how PM tools like Linear/Jira actually work: epics span
+sprints, they don't nest inside them.
+
 
 ## Structure
 
@@ -39,8 +57,6 @@ npm run dev
 
 ```
 DATABASE_URL=postgresql://[user]:[password]@[neon-host]/neondb?sslmode=require
-
-postgresql://neondb_owner:npg_I8pEFZWYuQv1@ep-green-sea-axwztjjr.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require
 ```
 
 ## Seed data
@@ -67,40 +83,50 @@ Check items off as they're built. Update this file directly as work lands.
 ### Foundation / infra
 
 - [x] Turborepo scaffold (`apps/web`, `apps/mobile` placeholder, `packages/api`, `packages/db`, `packages/ui`)
-- [x] Drizzle schema (orgs, projects, boards, columns, tasks, comments, attachments, activity, GitHub integration)
+- [x] Drizzle schema (orgs, projects, epics, sprints, boards, columns, tasks, comments, attachments, activity, GitHub integration)
 - [x] tRPC base setup (context, `protectedProcedure`, `projectProcedure` permission middleware)
 - [x] `project` router (list, create, connectGithubRepo, addMember)
-- [x] `task` router (create, move w/ fractional indexing, assign)
+- [x] `task` router (create, move w/ fractional indexing, assign, setOwner, setTimeline, setEpic, setSprint)
+- [x] `epic` router (list, create, update)
+- [x] `sprint` router (list, create, start, complete)
+- [x] `board` router (get with columns/tasks, getFirstForProject)
+- [x] `organization` router (getBySlug)
 - [x] `github` router + webhook route (signature verification, issue/comment sync)
 - [x] Auth provider chosen and wired — Auth.js v5, GitHub OAuth, JWT sessions, upsert into `users` table (`apps/web/src/lib/auth.ts`, `middleware.ts`, `/sign-in`)
 - [ ] Database migrated against a real Neon instance (`db:generate` + `db:migrate` run)
-- [x] Seed script (sample org, project, board, columns, tasks) for local dev — `npm run db:seed` (idempotent, skips if demo org already exists)
+- [x] Seed script (org, project, epic, sprint, board, columns, tasks, comments) for local dev — `npm run db:seed` (idempotent, skips if demo org already exists)
 - [ ] GitHub App registered (real `GITHUB_APP_SLUG`, per-installation webhook secrets wired to `githubIntegrations.webhookSecret` instead of one global env var)
 - [ ] Real "system/GitHub" user row for comment attribution (currently stubbed)
+- [ ] Per-project task numbering moved off max+1 counter to a real sequence/counters table (current approach can race under concurrent writes)
 - [ ] Vercel project connected, Root Directory set to `apps/web`, Turborepo remote caching confirmed
 - [ ] Neon database provisioned for production
 
 ### Pages / screens
 
-- [ ] Sign in / sign up
+- [x] Sign in (`/sign-in`, GitHub OAuth via Auth.js)
+- [x] Kanban board view (`/board`) — columns, cards, drag-and-drop, priority accent bar, epic chip, due date, owner/assignee (currently a hardcoded demo route resolving the seeded `acme-dev` org; needs real `/org/[orgSlug]/project/[projectKey]/board/[boardId]` routing)
 - [ ] Org switcher + create-org flow
 - [ ] Project list / dashboard shell (RSC-rendered nav + project list)
-- [ ] Board view (Kanban columns, cards)
-- [ ] Task detail panel/modal (description, comments, assignee, labels, subtasks)
+- [ ] Epic list / roadmap view (epics with owner, status, target date)
+- [ ] Sprint planning view (backlog → sprint assignment, start/complete sprint)
+- [ ] Timeline/Gantt-style view (task start/due dates across a sprint or epic)
+- [ ] Task detail panel/modal (description, comments, owner, assignee, epic, sprint, timeline, labels, subtasks)
 - [ ] Activity feed view
 - [ ] GitHub connect / repo-linking settings page
 - [ ] Empty states + loading skeletons
 
 ### Frontend logic
 
-- [ ] TanStack Query provider + client setup in `apps/web`
-- [ ] Optimistic update flow for `task.move` (drag-and-drop)
-- [ ] Zustand stores (drag state, active filters, open panel/modal id)
-- [ ] Drag-and-drop implementation wired to `task.move`
-- [ ] Framer Motion layout animations for card reorder/move
+- [x] TanStack Query provider + tRPC client setup (`src/components/providers.tsx`)
+- [x] Optimistic update flow for `task.move` (`src/hooks/use-move-task.ts`)
+- [x] Zustand board store (drag target, active task, assignee filter, open task panel id)
+- [x] Drag-and-drop implementation (`@dnd-kit`) wired to `task.move`, incl. position-ghost chip showing the computed fractional index
+- [x] Framer Motion layout animations for card reorder/move
+- [ ] Epic/sprint filter controls on the board (filter cards by epic or sprint)
 - [ ] Keyboard shortcuts (nice-to-have, cheap polish)
 
 ### Polish / portfolio extras
 
 - [ ] Public read-only demo mode (seeded org, no sign-up required)
 - [ ] README screenshots/GIF of the board in action
+

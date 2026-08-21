@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { generateKeyBetween } from "fractional-indexing";
 import { tasks, activityEvents } from "@repo/db/schema";
 import { router, protectedProcedure, projectProcedure } from "../trpc";
@@ -25,6 +25,13 @@ export const taskRouter = router({
         columnId: z.string().uuid(),
         title: z.string().min(1).max(500),
         description: z.string().optional(),
+        epicId: z.string().uuid().optional(),
+        sprintId: z.string().uuid().optional(),
+        ownerId: z.string().uuid().optional(),
+        assigneeId: z.string().uuid().optional(),
+        priority: z.enum(["NONE", "LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
+        startDate: z.date().optional(),
+        dueDate: z.date().optional(),
         // Position of the last task in the column, if any — used to
         // generate a key after it. Omit to place at the top.
         afterPosition: z.string().nullable().optional(),
@@ -33,13 +40,31 @@ export const taskRouter = router({
     .mutation(async ({ ctx, input }) => {
       const position = generateKeyBetween(input.afterPosition ?? null, null);
 
+      // Simple max+1 counter for the human-readable key (e.g. "PMT-42").
+      // Fine for hobby-project traffic; under real concurrent writes this
+      // can race — move to a Postgres sequence per project (or a
+      // `SELECT ... FOR UPDATE` on a counters table) before this sees
+      // multi-user concurrent task creation in the same project.
+      const [{ maxNumber }] = await ctx.db
+        .select({ maxNumber: sql<number>`coalesce(max(${tasks.number}), 0)` })
+        .from(tasks)
+        .where(eq(tasks.projectId, input.projectId));
+
       const [task] = await ctx.db
         .insert(tasks)
         .values({
           projectId: input.projectId,
           columnId: input.columnId,
+          number: maxNumber + 1,
           title: input.title,
           description: input.description,
+          epicId: input.epicId,
+          sprintId: input.sprintId,
+          ownerId: input.ownerId,
+          assigneeId: input.assigneeId,
+          priority: input.priority,
+          startDate: input.startDate,
+          dueDate: input.dueDate,
           position,
         })
         .returning();
@@ -127,6 +152,96 @@ export const taskRouter = router({
         payload: { assigneeId: input.assigneeId },
       });
 
+      return updated;
+    }),
+
+  /** Sets the PM-facing accountable owner — distinct from the assignee. */
+  setOwner: projectProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        taskId: z.string().uuid(),
+        ownerId: z.string().uuid().nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [updated] = await ctx.db
+        .update(tasks)
+        .set({ ownerId: input.ownerId, updatedAt: new Date() })
+        .where(eq(tasks.id, input.taskId))
+        .returning();
+
+      await ctx.db.insert(activityEvents).values({
+        projectId: input.projectId,
+        taskId: input.taskId,
+        actorId: ctx.session.userId,
+        type: "TASK_UPDATED",
+        payload: { ownerId: input.ownerId },
+      });
+
+      return updated;
+    }),
+
+  /** Sets start/due dates — the timeline a PM plans against. */
+  setTimeline: projectProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        taskId: z.string().uuid(),
+        startDate: z.date().nullable().optional(),
+        dueDate: z.date().nullable().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { taskId, projectId, ...patch } = input;
+      const [updated] = await ctx.db
+        .update(tasks)
+        .set({ ...patch, updatedAt: new Date() })
+        .where(eq(tasks.id, taskId))
+        .returning();
+
+      await ctx.db.insert(activityEvents).values({
+        projectId: input.projectId,
+        taskId: input.taskId,
+        actorId: ctx.session.userId,
+        type: "TASK_UPDATED",
+        payload: { startDate: input.startDate, dueDate: input.dueDate },
+      });
+
+      return updated;
+    }),
+
+  setEpic: projectProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        taskId: z.string().uuid(),
+        epicId: z.string().uuid().nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [updated] = await ctx.db
+        .update(tasks)
+        .set({ epicId: input.epicId, updatedAt: new Date() })
+        .where(eq(tasks.id, input.taskId))
+        .returning();
+      return updated;
+    }),
+
+  setSprint: projectProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        taskId: z.string().uuid(),
+        sprintId: z.string().uuid().nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [updated] = await ctx.db
+        .update(tasks)
+        .set({ sprintId: input.sprintId, updatedAt: new Date() })
+        .where(eq(tasks.id, input.taskId))
+        .returning();
       return updated;
     }),
 });

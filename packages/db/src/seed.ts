@@ -11,6 +11,8 @@ import {
   tasks,
   comments,
   activityEvents,
+  epics,
+  sprints,
 } from "./schema";
 
 const DEMO_ORG_SLUG = "acme-dev";
@@ -74,6 +76,34 @@ async function main() {
     { projectId: project.id, userId: teammate.id, role: "EDITOR" },
   ]);
 
+  // --- Epics + Sprint (PM-facing planning layer) --------------------------
+  const [epic] = await db
+    .insert(epics)
+    .values({
+      projectId: project.id,
+      name: "Board v1",
+      description: "Ship the core Kanban board experience end to end.",
+      status: "IN_PROGRESS",
+      color: "#5B8DEF",
+      ownerId: owner.id,
+      startDate: new Date(),
+      targetDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 21), // +21 days
+    })
+    .returning();
+
+  const now = new Date();
+  const [sprint] = await db
+    .insert(sprints)
+    .values({
+      projectId: project.id,
+      name: "Sprint 1",
+      goal: "Get the board rendering real data with drag-and-drop.",
+      status: "ACTIVE",
+      startDate: now,
+      endDate: new Date(now.getTime() + 1000 * 60 * 60 * 24 * 14), // +14 days
+    })
+    .returning();
+
   // --- Board + columns ------------------------------------------------
   const [board] = await db
     .insert(boards)
@@ -100,18 +130,22 @@ async function main() {
     description: string;
     priority: "NONE" | "LOW" | "MEDIUM" | "HIGH" | "URGENT";
     assigneeId?: string;
+    ownerId?: string;
+    dueDate?: Date;
   }> = [
     {
       columnId: backlog.id,
       title: "Design activity feed UI",
       description: "Sketch the feed layout for project-level activity events.",
       priority: "LOW",
+      ownerId: owner.id,
     },
     {
       columnId: backlog.id,
       title: "Add keyboard shortcuts",
       description: "Cmd+K command palette, j/k navigation on the board.",
       priority: "LOW",
+      ownerId: owner.id,
     },
     {
       columnId: todo.id,
@@ -119,6 +153,8 @@ async function main() {
       description: "GitHub OAuth via Auth.js, redirect to callbackUrl after login.",
       priority: "HIGH",
       assigneeId: owner.id,
+      ownerId: owner.id,
+      dueDate: new Date(now.getTime() + 1000 * 60 * 60 * 24 * 3),
     },
     {
       columnId: todo.id,
@@ -126,6 +162,8 @@ async function main() {
       description: "Register the GitHub App, subscribe to issues + issue_comment.",
       priority: "MEDIUM",
       assigneeId: teammate.id,
+      ownerId: owner.id,
+      dueDate: new Date(now.getTime() + 1000 * 60 * 60 * 24 * 5),
     },
     {
       columnId: inProgress.id,
@@ -133,6 +171,8 @@ async function main() {
       description: "Wire task.move to drag events with optimistic updates.",
       priority: "URGENT",
       assigneeId: owner.id,
+      ownerId: owner.id,
+      dueDate: new Date(now.getTime() + 1000 * 60 * 60 * 24 * 2),
     },
     {
       columnId: done.id,
@@ -140,6 +180,7 @@ async function main() {
       description: "Org, project, board, column, task, comment, activity tables.",
       priority: "MEDIUM",
       assigneeId: owner.id,
+      ownerId: owner.id,
     },
   ];
 
@@ -152,6 +193,7 @@ async function main() {
   };
 
   const insertedTasks = [];
+  let taskNumber = 1;
   for (const t of sampleTasks) {
     const position = generateKeyBetween(posCursor[t.columnId], null);
     posCursor[t.columnId] = position;
@@ -161,11 +203,16 @@ async function main() {
       .values({
         projectId: project.id,
         columnId: t.columnId,
+        number: taskNumber++,
         title: t.title,
         description: t.description,
         position,
         priority: t.priority,
         assigneeId: t.assigneeId,
+        ownerId: t.ownerId,
+        epicId: epic.id,
+        sprintId: sprint.id,
+        dueDate: t.dueDate,
       })
       .returning();
     insertedTasks.push(task);
@@ -200,6 +247,8 @@ async function main() {
   console.log(`  org:     ${org.name} (${org.slug})`);
   console.log(`  users:   ${owner.email}, ${teammate.email}`);
   console.log(`  project: ${project.name} [${project.key}]`);
+  console.log(`  epic:    ${epic.name}`);
+  console.log(`  sprint:  ${sprint.name}`);
   console.log(`  board:   ${board.name} with ${insertedColumns.length} columns`);
   console.log(`  tasks:   ${insertedTasks.length}`);
 }
