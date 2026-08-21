@@ -84,7 +84,7 @@ Check items off as they're built. Update this file directly as work lands.
 - [x] `project` router (list, listMembers, create, connectGithubRepo, addMember)
 - [x] `task` router (create, move w/ fractional indexing, assign, setOwner, setTimeline, setEpic, setSprint, getById, addComment)
 - [x] `epic` router (list, create, update)
-- [x] `sprint` router (list, create, start, complete)
+- [x] `sprint` router (list, planningBoard, create, start, complete)
 - [x] `board` router (get with columns/tasks, getFirstForProject)
 - [x] `organization` router (getBySlug)
 - [x] `github` router + webhook route (signature verification, issue/comment sync)
@@ -120,11 +120,33 @@ Check items off as they're built. Update this file directly as work lands.
 - [x] Framer Motion layout animations for card reorder/move
 - [ ] Epic/sprint filter controls on the board (filter cards by epic or sprint)
 - [ ] Labels editing UI on the task panel (schema supports it, no UI yet)
-- [ ] Drag tasks between backlog and a sprint from the sprint planning screen (currently sprint assignment only via the task panel dropdown)
+- [x] Drag tasks between backlog and a sprint (`/backlog` — `sprint.planningBoard` query, `use-assign-sprint.ts` optimistic hook, `PlanningBoard`/`PlanningCard` components)
 - [ ] Keyboard shortcuts (nice-to-have, cheap polish)
 
 ### Polish / portfolio extras
 
 - [ ] Public read-only demo mode (seeded org, no sign-up required)
 - [ ] README screenshots/GIF of the board in action
+
+### Gaps vs. a real-world Kanban/PM tool
+
+Identified but not yet built — roughly ordered by portfolio impact:
+
+- [ ] Swimlanes (group board rows by epic/assignee/priority)
+- [ ] WIP limits actually enforced on drop (currently just displayed)
+- [ ] Column management UI (create/rename/reorder/delete columns and boards)
+- [ ] Quick-add task inline on the board (type a title, hit enter)
+- [ ] Story points / estimation on tasks
+- [ ] Sprint burndown/velocity chart
+- [ ] Backlog ordering (explicit priority order, not just creation order)
+- [ ] Epic progress bar (done/total, not just task count)
+- [ ] Labels/tags UI (schema supports it, no add/filter UI)
+- [ ] Real-time presence + live board sync across users
+- [ ] @mentions + notifications
+- [ ] Search and quick filters (my tasks, unassigned, by label)
+- [ ] Table/list view as an alternative to the board
+- [ ] Undo, and archive-vs-delete distinction (deletes are currently hard deletes)
+- [ ] Rendered activity feed (events are logged to `activityEvents` but never displayed)
+- [ ] Large-board virtualization
+
 

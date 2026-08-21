@@ -14,6 +14,35 @@ export const sprintRouter = router({
       });
     }),
 
+  /**
+   * Combined shape for the backlog/sprint-planning screen: unassigned
+   * (sprintId IS NULL) tasks plus every non-completed sprint with its
+   * tasks, each including enough relations to render a compact card.
+   */
+  planningBoard: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const [planningSprints, backlogTasks] = await Promise.all([
+        ctx.db.query.sprints.findMany({
+          where: (s, { and, eq, ne }) =>
+            and(eq(s.projectId, input.projectId), ne(s.status, "COMPLETED")),
+          orderBy: (s, { asc }) => asc(s.startDate),
+          with: {
+            tasks: {
+              with: { assignee: true, epic: true },
+            },
+          },
+        }),
+        ctx.db.query.tasks.findMany({
+          where: (t, { and, eq, isNull }) =>
+            and(eq(t.projectId, input.projectId), isNull(t.sprintId)),
+          with: { assignee: true, epic: true },
+        }),
+      ]);
+
+      return { backlog: backlogTasks, sprints: planningSprints };
+    }),
+
   create: projectProcedure
     .input(
       z.object({
