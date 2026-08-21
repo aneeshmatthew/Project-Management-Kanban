@@ -134,7 +134,7 @@ Check items off as they're built. Update this file directly as work lands.
 Identified but not yet built — roughly ordered by portfolio impact:
 
 - [ ] Swimlanes (group board rows by epic/assignee/priority)
-- [ ] WIP limits actually enforced on drop (currently just displayed)
+- [x] WIP limits actually enforced on drop — blocked with a red column highlight + toast message, checked against the true (unfiltered) column state so an active label filter can't be used to sneak past the limit; seed sets "In Progress" to a limit of 1 so it's demonstrable immediately
 - [ ] Column management UI (create/rename/reorder/delete columns and boards)
 - [ ] Quick-add task inline on the board (type a title, hit enter)
 - [x] Story points / estimation on tasks (`storyPoints` column, editable in the task panel, shown on Kanban and planning cards)

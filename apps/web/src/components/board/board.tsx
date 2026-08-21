@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -14,7 +14,7 @@ import {
 import { generateKeyBetween } from "fractional-indexing";
 import { AnimatePresence, motion } from "framer-motion";
 import { Column, type ColumnData } from "./column";
-import { TaskCard } from "./task-card";
+import { TaskCard, type TaskCardData } from "./task-card";
 import { useMoveTask } from "@/hooks/use-move-task";
 import { useBoardStore } from "@/stores/board-store";
 import { labelColor } from "@/lib/labels";
@@ -28,6 +28,7 @@ export function Board({
   boardId: string;
   columns: ColumnData[];
 }) {
+  const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
   const moveTask = useMoveTask(projectId, boardId);
   const dragTarget = useBoardStore((s) => s.dragTarget);
   const setDragTarget = useBoardStore((s) => s.setDragTarget);
@@ -53,24 +54,32 @@ export function Board({
     return Array.from(set).sort();
   }, [columns]);
 
-  const filteredColumns = useMemo(() => {
-    if (labelFilters.length === 0) return columns;
-    return columns.map((col) => ({
-      ...col,
-      tasks: col.tasks.filter((t) => t.labels.some((l) => labelFilters.includes(l))),
-    }));
+  // `columns` stays the source of truth (full task lists, used for WIP
+  // math and lookups). `visibleTasksByColumn` is the label-filtered view
+  // actually rendered — kept separate so filtering can never distort a
+  // WIP limit check.
+  const visibleTasksByColumn = useMemo(() => {
+    const map = new Map<string, TaskCardData[]>();
+    for (const col of columns) {
+      map.set(
+        col.id,
+        labelFilters.length === 0
+          ? col.tasks
+          : col.tasks.filter((t) => t.labels.some((l) => labelFilters.includes(l)))
+      );
+    }
+    return map;
   }, [columns, labelFilters]);
 
-  const taskLookup = useMemo(() => {
-    const map = new Map<
-      string,
-      { task: (typeof filteredColumns)[number]["tasks"][number]; columnId: string }
-    >();
-    for (const col of filteredColumns) {
+  // Maps every task id -> its true current column id, built from the full
+  // (unfiltered) data so drag interactions always resolve correctly.
+  const taskColumnLookup = useMemo(() => {
+    const map = new Map<string, { task: TaskCardData; columnId: string }>();
+    for (const col of columns) {
       for (const task of col.tasks) map.set(task.id, { task, columnId: col.id });
     }
     return map;
-  }, [filteredColumns]);
+  }, [columns]);
 
   function handleDragStart(event: DragStartEvent) {
     setActiveTask(String(event.active.id));
@@ -80,14 +89,29 @@ export function Board({
     const { active, over } = event;
     if (!over) return;
 
-    const overEntry = taskLookup.get(String(over.id));
+    const overEntry = taskColumnLookup.get(String(over.id));
     const targetColumnId = overEntry?.columnId ?? String(over.id); // over.id may be a column (empty drop zone) or a task
 
-    const columnTasks = filteredColumns.find((c) => c.id === targetColumnId)?.tasks ?? [];
-    const overIndex = columnTasks.findIndex((t) => t.id === over.id);
+    const targetColumn = columns.find((c) => c.id === targetColumnId);
+    const isReorderWithinColumn = targetColumn?.tasks.some((t) => t.id === active.id);
+    const wouldExceedLimit =
+      targetColumn?.wipLimit != null &&
+      !isReorderWithinColumn &&
+      targetColumn.tasks.length >= targetColumn.wipLimit;
 
-    const before = overIndex > 0 ? columnTasks[overIndex - 1].position : null;
-    const after = overIndex >= 0 ? columnTasks[overIndex].position : null;
+    if (wouldExceedLimit) {
+      // Suppress the position-ghost chip while hovering a blocked column so
+      // the two visual signals (red column vs. "here's your new position")
+      // never contradict each other.
+      setDragTarget(null);
+      return;
+    }
+
+    const visibleTasks = visibleTasksByColumn.get(targetColumnId) ?? [];
+    const overIndex = visibleTasks.findIndex((t) => t.id === over.id);
+
+    const before = overIndex > 0 ? visibleTasks[overIndex - 1].position : null;
+    const after = overIndex >= 0 ? visibleTasks[overIndex].position : null;
     const preview = generateKeyBetween(before, after);
 
     setDragTarget({
@@ -99,23 +123,56 @@ export function Board({
   }
 
   function handleDragEnd(event: DragEndEvent) {
-    const { active } = event;
+    const { active, over } = event;
     setActiveTask(null);
 
-    if (!dragTarget) return;
+    if (!over) {
+      setDragTarget(null);
+      return;
+    }
 
-    moveTask.mutate({
-      projectId,
-      taskId: String(active.id),
-      toColumnId: dragTarget.columnId,
-      beforePosition: dragTarget.beforePosition,
-      afterPosition: dragTarget.afterPosition,
-    });
+    // Resolve the target column from the drop event itself rather than
+    // from `dragTarget` — dragTarget is intentionally nulled while
+    // hovering a blocked column (see handleDragOver above), so relying on
+    // it here would silently swallow the drop instead of showing the
+    // WIP-limit toast.
+    const overEntry = taskColumnLookup.get(String(over.id));
+    const targetColumnId = overEntry?.columnId ?? String(over.id);
+    const targetColumn = columns.find((c) => c.id === targetColumnId);
+    const isReorderWithinColumn = targetColumn?.tasks.some((t) => t.id === active.id);
+
+    if (
+      targetColumn?.wipLimit != null &&
+      !isReorderWithinColumn &&
+      targetColumn.tasks.length >= targetColumn.wipLimit
+    ) {
+      setBlockedMessage(
+        `${targetColumn.name} is at its WIP limit (${targetColumn.wipLimit}) — move or finish a task there first.`
+      );
+      setDragTarget(null);
+      return;
+    }
+
+    if (dragTarget) {
+      moveTask.mutate({
+        projectId,
+        taskId: String(active.id),
+        toColumnId: dragTarget.columnId,
+        beforePosition: dragTarget.beforePosition,
+        afterPosition: dragTarget.afterPosition,
+      });
+    }
 
     setDragTarget(null);
   }
 
-  const activeTask = activeTaskId ? taskLookup.get(activeTaskId)?.task : null;
+  const activeTask = activeTaskId ? taskColumnLookup.get(activeTaskId)?.task : null;
+
+  useEffect(() => {
+    if (!blockedMessage) return;
+    const timer = setTimeout(() => setBlockedMessage(null), 2500);
+    return () => clearTimeout(timer);
+  }, [blockedMessage]);
 
   return (
     <DndContext
@@ -156,8 +213,12 @@ export function Board({
       )}
 
       <div className="flex gap-4 overflow-x-auto p-4">
-        {filteredColumns.map((col) => (
-          <Column key={col.id} column={col} />
+        {columns.map((col) => (
+          <Column
+            key={col.id}
+            column={col}
+            visibleTasks={visibleTasksByColumn.get(col.id) ?? []}
+          />
         ))}
       </div>
 
@@ -178,6 +239,20 @@ export function Board({
             className="pointer-events-none fixed bottom-6 left-1/2 -translate-x-1/2 rounded border border-border bg-panel px-2.5 py-1 font-mono text-[11px] text-priority-high shadow-lg"
           >
             position: {dragTarget.previewPosition}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {blockedMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="pointer-events-none fixed bottom-16 left-1/2 -translate-x-1/2 rounded border border-priority-urgent/60 bg-panel px-3 py-1.5 text-xs text-priority-urgent shadow-lg"
+          >
+            {blockedMessage}
           </motion.div>
         )}
       </AnimatePresence>

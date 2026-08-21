@@ -110,14 +110,22 @@ async function main() {
     .values({ projectId: project.id, name: "Sprint 1" })
     .returning();
 
-  const columnDefs = ["Backlog", "To Do", "In Progress", "Done"];
+  const columnDefs: { name: string; wipLimit: number | null }[] = [
+    { name: "Backlog", wipLimit: null },
+    { name: "To Do", wipLimit: null },
+    // Set to 1 and the seed data already puts exactly one task here, so
+    // WIP enforcement is demonstrable immediately: dragging any second
+    // task into "In Progress" should be blocked without further setup.
+    { name: "In Progress", wipLimit: 1 },
+    { name: "Done", wipLimit: null },
+  ];
   let colPos: string | null = null;
   const insertedColumns = [];
-  for (const name of columnDefs) {
+  for (const { name, wipLimit } of columnDefs) {
     colPos = generateKeyBetween(colPos, null);
     const [col] = await db
       .insert(columns)
-      .values({ boardId: board.id, name, position: colPos })
+      .values({ boardId: board.id, name, position: colPos, wipLimit })
       .returning();
     insertedColumns.push(col);
   }
