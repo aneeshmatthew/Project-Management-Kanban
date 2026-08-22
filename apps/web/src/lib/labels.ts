@@ -14,6 +14,8 @@ export function labelColor(label: string): string {
     hash = (hash << 5) - hash + label.charCodeAt(i);
     hash |= 0;
   }
-  return LABEL_PALETTE[Math.abs(hash) % LABEL_PALETTE.length];
-//return LABEL_PALETTE[Math.abs(hash) % LABEL_PALETTE.length]!;
+  // Modulo guarantees an in-range index, but TS's noUncheckedIndexedAccess
+  // still types array access as possibly-undefined — the `??` fallback is
+  // for the type checker, not because this can actually be undefined.
+  return LABEL_PALETTE[Math.abs(hash) % LABEL_PALETTE.length] ?? "#5B8DEF";
 }

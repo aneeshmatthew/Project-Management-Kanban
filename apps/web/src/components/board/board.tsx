@@ -110,8 +110,8 @@ export function Board({
     const visibleTasks = visibleTasksByColumn.get(targetColumnId) ?? [];
     const overIndex = visibleTasks.findIndex((t) => t.id === over.id);
 
-    const before = overIndex > 0 ? visibleTasks[overIndex - 1].position : null;
-    const after = overIndex >= 0 ? visibleTasks[overIndex].position : null;
+    const before = overIndex > 0 ? (visibleTasks[overIndex - 1]?.position ?? null) : null;
+    const after = overIndex >= 0 ? (visibleTasks[overIndex]?.position ?? null) : null;
     const preview = generateKeyBetween(before, after);
 
     setDragTarget({
