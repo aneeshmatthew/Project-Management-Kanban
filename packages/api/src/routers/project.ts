@@ -2,6 +2,7 @@ import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { projects, projectMembers } from "@repo/db/schema";
 import { router, protectedProcedure, projectProcedure } from "../trpc";
+import { firstOrThrow } from "../lib/db-helpers";
 
 export const projectRouter = router({
   list: protectedProcedure
@@ -32,7 +33,10 @@ export const projectRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [project] = await ctx.db.insert(projects).values(input).returning();
+      const project = firstOrThrow(
+        await ctx.db.insert(projects).values(input).returning(),
+        "insert project"
+      );
       return project;
     }),
 
@@ -44,11 +48,14 @@ export const projectRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [updated] = await ctx.db
-        .update(projects)
-        .set({ githubRepoId: input.githubRepoId, updatedAt: new Date() })
-        .where(eq(projects.id, input.projectId))
-        .returning();
+      const updated = firstOrThrow(
+        await ctx.db
+          .update(projects)
+          .set({ githubRepoId: input.githubRepoId, updatedAt: new Date() })
+          .where(eq(projects.id, input.projectId))
+          .returning(),
+        "connect GitHub repo"
+      );
       return updated;
     }),
 
@@ -61,10 +68,10 @@ export const projectRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [member] = await ctx.db
-        .insert(projectMembers)
-        .values(input)
-        .returning();
+      const member = firstOrThrow(
+        await ctx.db.insert(projectMembers).values(input).returning(),
+        "insert project member"
+      );
       return member;
     }),
 });

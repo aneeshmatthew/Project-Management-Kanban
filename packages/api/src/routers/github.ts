@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { eq, and } from "drizzle-orm";
 import { tasks, comments, activityEvents, githubIntegrations, projects } from "@repo/db/schema";
 import { router, protectedProcedure, projectProcedure } from "../trpc";
+import { firstOrThrow } from "../lib/db-helpers";
 import type { db as DbClient } from "@repo/db";
 
 export const githubRouter = router({
@@ -120,17 +121,20 @@ export async function handleIssueEvent(
       where: (c, { eq, inArray }) => undefined, // resolved via board lookup in real impl
     });
 
-    const [task] = await db
-      .insert(tasks)
-      .values({
-        projectId: project.id,
-        columnId: defaultColumn!.id,
-        title: payload.issue.title,
-        description: payload.issue.body ?? "",
-        position: "a0",
-        githubIssueId,
-      })
-      .returning();
+    const task = firstOrThrow(
+      await db
+        .insert(tasks)
+        .values({
+          projectId: project.id,
+          columnId: defaultColumn!.id,
+          title: payload.issue.title,
+          description: payload.issue.body ?? "",
+          position: "a0",
+          githubIssueId,
+        })
+        .returning(),
+      "insert task from GitHub issue"
+    );
 
     await db.insert(activityEvents).values({
       projectId: project.id,
@@ -143,15 +147,18 @@ export async function handleIssueEvent(
   }
 
   if (existingTask && ["edited", "closed", "reopened"].includes(payload.action)) {
-    const [updated] = await db
-      .update(tasks)
-      .set({
-        title: payload.issue.title,
-        description: payload.issue.body ?? "",
-        updatedAt: new Date(),
-      })
-      .where(eq(tasks.id, existingTask.id))
-      .returning();
+    const updated = firstOrThrow(
+      await db
+        .update(tasks)
+        .set({
+          title: payload.issue.title,
+          description: payload.issue.body ?? "",
+          updatedAt: new Date(),
+        })
+        .where(eq(tasks.id, existingTask.id))
+        .returning(),
+      "update task from GitHub issue"
+    );
 
     await db.insert(activityEvents).values({
       projectId: project.id,
@@ -184,16 +191,19 @@ export async function handleIssueCommentEvent(
   // GitHub commenter may not have a corresponding platform user. Store
   // the GitHub login in the body prefix or extend the schema with an
   // externalAuthorName column if you want cleaner attribution.
-  const [comment] = await db
-    .insert(comments)
-    .values({
-      taskId: task.id,
-      authorId: task.assigneeId ?? task.id, // placeholder — replace with a
-      // real "system/github" user row in production rather than reusing IDs
-      body: `**@${payload.comment.user.login} (GitHub):** ${payload.comment.body}`,
-      githubCommentId: String(payload.comment.id),
-    })
-    .returning();
+  const comment = firstOrThrow(
+    await db
+      .insert(comments)
+      .values({
+        taskId: task.id,
+        authorId: task.assigneeId ?? task.id, // placeholder — replace with a
+        // real "system/github" user row in production rather than reusing IDs
+        body: `**@${payload.comment.user.login} (GitHub):** ${payload.comment.body}`,
+        githubCommentId: String(payload.comment.id),
+      })
+      .returning(),
+    "insert GitHub comment"
+  );
 
   await db.insert(activityEvents).values({
     projectId: task.projectId,

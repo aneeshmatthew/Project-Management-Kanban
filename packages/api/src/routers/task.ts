@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { generateKeyBetween } from "fractional-indexing";
 import { tasks, comments, activityEvents } from "@repo/db/schema";
 import { router, protectedProcedure, projectProcedure } from "../trpc";
+import { firstOrThrow } from "../lib/db-helpers";
 
 export const taskRouter = router({
   getById: protectedProcedure
@@ -67,30 +68,36 @@ export const taskRouter = router({
       // can race — move to a Postgres sequence per project (or a
       // `SELECT ... FOR UPDATE` on a counters table) before this sees
       // multi-user concurrent task creation in the same project.
-      const [{ maxNumber }] = await ctx.db
-        .select({ maxNumber: sql<number>`coalesce(max(${tasks.number}), 0)` })
-        .from(tasks)
-        .where(eq(tasks.projectId, input.projectId));
+      const { maxNumber } = firstOrThrow(
+        await ctx.db
+          .select({ maxNumber: sql<number>`coalesce(max(${tasks.number}), 0)` })
+          .from(tasks)
+          .where(eq(tasks.projectId, input.projectId)),
+        "compute next task number"
+      );
 
-      const [task] = await ctx.db
-        .insert(tasks)
-        .values({
-          projectId: input.projectId,
-          columnId: input.columnId,
-          number: maxNumber + 1,
-          title: input.title,
-          description: input.description,
-          epicId: input.epicId,
-          sprintId: input.sprintId,
-          ownerId: input.ownerId,
-          assigneeId: input.assigneeId,
-          priority: input.priority,
-          storyPoints: input.storyPoints,
-          startDate: input.startDate,
-          dueDate: input.dueDate,
-          position,
-        })
-        .returning();
+      const task = firstOrThrow(
+        await ctx.db
+          .insert(tasks)
+          .values({
+            projectId: input.projectId,
+            columnId: input.columnId,
+            number: maxNumber + 1,
+            title: input.title,
+            description: input.description,
+            epicId: input.epicId,
+            sprintId: input.sprintId,
+            ownerId: input.ownerId,
+            assigneeId: input.assigneeId,
+            priority: input.priority,
+            storyPoints: input.storyPoints,
+            startDate: input.startDate,
+            dueDate: input.dueDate,
+            position,
+          })
+          .returning(),
+        "insert task"
+      );
 
       await ctx.db.insert(activityEvents).values({
         projectId: input.projectId,
@@ -131,15 +138,18 @@ export const taskRouter = router({
         .from(tasks)
         .where(eq(tasks.id, input.taskId));
 
-      const [updated] = await ctx.db
-        .update(tasks)
-        .set({
-          columnId: input.toColumnId,
-          position: newPosition,
-          updatedAt: new Date(),
-        })
-        .where(eq(tasks.id, input.taskId))
-        .returning();
+      const updated = firstOrThrow(
+        await ctx.db
+          .update(tasks)
+          .set({
+            columnId: input.toColumnId,
+            position: newPosition,
+            updatedAt: new Date(),
+          })
+          .where(eq(tasks.id, input.taskId))
+          .returning(),
+        "move task"
+      );
 
       await ctx.db.insert(activityEvents).values({
         projectId: input.projectId,
@@ -161,11 +171,14 @@ export const taskRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [updated] = await ctx.db
-        .update(tasks)
-        .set({ assigneeId: input.assigneeId, updatedAt: new Date() })
-        .where(eq(tasks.id, input.taskId))
-        .returning();
+      const updated = firstOrThrow(
+        await ctx.db
+          .update(tasks)
+          .set({ assigneeId: input.assigneeId, updatedAt: new Date() })
+          .where(eq(tasks.id, input.taskId))
+          .returning(),
+        "assign task"
+      );
 
       await ctx.db.insert(activityEvents).values({
         projectId: input.projectId,
@@ -188,11 +201,14 @@ export const taskRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [updated] = await ctx.db
-        .update(tasks)
-        .set({ ownerId: input.ownerId, updatedAt: new Date() })
-        .where(eq(tasks.id, input.taskId))
-        .returning();
+      const updated = firstOrThrow(
+        await ctx.db
+          .update(tasks)
+          .set({ ownerId: input.ownerId, updatedAt: new Date() })
+          .where(eq(tasks.id, input.taskId))
+          .returning(),
+        "set task owner"
+      );
 
       await ctx.db.insert(activityEvents).values({
         projectId: input.projectId,
@@ -217,11 +233,14 @@ export const taskRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { taskId, projectId, ...patch } = input;
-      const [updated] = await ctx.db
-        .update(tasks)
-        .set({ ...patch, updatedAt: new Date() })
-        .where(eq(tasks.id, taskId))
-        .returning();
+      const updated = firstOrThrow(
+        await ctx.db
+          .update(tasks)
+          .set({ ...patch, updatedAt: new Date() })
+          .where(eq(tasks.id, taskId))
+          .returning(),
+        "set task timeline"
+      );
 
       await ctx.db.insert(activityEvents).values({
         projectId: input.projectId,
@@ -243,11 +262,14 @@ export const taskRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [updated] = await ctx.db
-        .update(tasks)
-        .set({ epicId: input.epicId, updatedAt: new Date() })
-        .where(eq(tasks.id, input.taskId))
-        .returning();
+      const updated = firstOrThrow(
+        await ctx.db
+          .update(tasks)
+          .set({ epicId: input.epicId, updatedAt: new Date() })
+          .where(eq(tasks.id, input.taskId))
+          .returning(),
+        "set task epic"
+      );
       return updated;
     }),
 
@@ -260,11 +282,14 @@ export const taskRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [updated] = await ctx.db
-        .update(tasks)
-        .set({ sprintId: input.sprintId, updatedAt: new Date() })
-        .where(eq(tasks.id, input.taskId))
-        .returning();
+      const updated = firstOrThrow(
+        await ctx.db
+          .update(tasks)
+          .set({ sprintId: input.sprintId, updatedAt: new Date() })
+          .where(eq(tasks.id, input.taskId))
+          .returning(),
+        "set task sprint"
+      );
       return updated;
     }),
 
@@ -277,11 +302,14 @@ export const taskRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [updated] = await ctx.db
-        .update(tasks)
-        .set({ labels: input.labels, updatedAt: new Date() })
-        .where(eq(tasks.id, input.taskId))
-        .returning();
+      const updated = firstOrThrow(
+        await ctx.db
+          .update(tasks)
+          .set({ labels: input.labels, updatedAt: new Date() })
+          .where(eq(tasks.id, input.taskId))
+          .returning(),
+        "set task labels"
+      );
       return updated;
     }),
 
@@ -294,11 +322,14 @@ export const taskRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [updated] = await ctx.db
-        .update(tasks)
-        .set({ storyPoints: input.storyPoints, updatedAt: new Date() })
-        .where(eq(tasks.id, input.taskId))
-        .returning();
+      const updated = firstOrThrow(
+        await ctx.db
+          .update(tasks)
+          .set({ storyPoints: input.storyPoints, updatedAt: new Date() })
+          .where(eq(tasks.id, input.taskId))
+          .returning(),
+        "set task story points"
+      );
       return updated;
     }),
 
@@ -311,14 +342,17 @@ export const taskRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [comment] = await ctx.db
-        .insert(comments)
-        .values({
-          taskId: input.taskId,
-          authorId: ctx.session.userId,
-          body: input.body,
-        })
-        .returning();
+      const comment = firstOrThrow(
+        await ctx.db
+          .insert(comments)
+          .values({
+            taskId: input.taskId,
+            authorId: ctx.session.userId,
+            body: input.body,
+          })
+          .returning(),
+        "insert comment"
+      );
 
       await ctx.db.insert(activityEvents).values({
         projectId: input.projectId,

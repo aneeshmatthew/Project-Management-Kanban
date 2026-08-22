@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { generateKeyBetween } from "fractional-indexing";
 import { columns } from "@repo/db/schema";
 import { router, projectProcedure } from "../trpc";
+import { firstOrThrow } from "../lib/db-helpers";
 
 export const columnRouter = router({
   create: projectProcedure
@@ -23,15 +24,18 @@ export const columnRouter = router({
 
       const position = generateKeyBetween(existing[0]?.position ?? null, null);
 
-      const [column] = await ctx.db
-        .insert(columns)
-        .values({
-          boardId: input.boardId,
-          name: input.name,
-          position,
-          wipLimit: input.wipLimit ?? null,
-        })
-        .returning();
+      const column = firstOrThrow(
+        await ctx.db
+          .insert(columns)
+          .values({
+            boardId: input.boardId,
+            name: input.name,
+            position,
+            wipLimit: input.wipLimit ?? null,
+          })
+          .returning(),
+        "insert column"
+      );
 
       return column;
     }),
@@ -45,11 +49,14 @@ export const columnRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [updated] = await ctx.db
-        .update(columns)
-        .set({ name: input.name })
-        .where(eq(columns.id, input.columnId))
-        .returning();
+      const updated = firstOrThrow(
+        await ctx.db
+          .update(columns)
+          .set({ name: input.name })
+          .where(eq(columns.id, input.columnId))
+          .returning(),
+        "rename column"
+      );
       return updated;
     }),
 
@@ -62,11 +69,14 @@ export const columnRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [updated] = await ctx.db
-        .update(columns)
-        .set({ wipLimit: input.wipLimit })
-        .where(eq(columns.id, input.columnId))
-        .returning();
+      const updated = firstOrThrow(
+        await ctx.db
+          .update(columns)
+          .set({ wipLimit: input.wipLimit })
+          .where(eq(columns.id, input.columnId))
+          .returning(),
+        "set column wipLimit"
+      );
       return updated;
     }),
 
@@ -86,11 +96,14 @@ export const columnRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const position = generateKeyBetween(input.beforePosition, input.afterPosition);
-      const [updated] = await ctx.db
-        .update(columns)
-        .set({ position })
-        .where(eq(columns.id, input.columnId))
-        .returning();
+      const updated = firstOrThrow(
+        await ctx.db
+          .update(columns)
+          .set({ position })
+          .where(eq(columns.id, input.columnId))
+          .returning(),
+        "move column"
+      );
       return updated;
     }),
 

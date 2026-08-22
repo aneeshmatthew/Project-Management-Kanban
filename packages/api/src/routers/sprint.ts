@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { sprints, activityEvents } from "@repo/db/schema";
 import { router, protectedProcedure, projectProcedure } from "../trpc";
+import { firstOrThrow } from "../lib/db-helpers";
 
 const DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -118,18 +119,24 @@ export const sprintRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [sprint] = await ctx.db.insert(sprints).values(input).returning();
+      const sprint = firstOrThrow(
+        await ctx.db.insert(sprints).values(input).returning(),
+        "insert sprint"
+      );
       return sprint;
     }),
 
   start: projectProcedure
     .input(z.object({ projectId: z.string().uuid(), sprintId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const [updated] = await ctx.db
-        .update(sprints)
-        .set({ status: "ACTIVE" })
-        .where(eq(sprints.id, input.sprintId))
-        .returning();
+      const updated = firstOrThrow(
+        await ctx.db
+          .update(sprints)
+          .set({ status: "ACTIVE" })
+          .where(eq(sprints.id, input.sprintId))
+          .returning(),
+        "start sprint"
+      );
 
       await ctx.db.insert(activityEvents).values({
         projectId: input.projectId,
@@ -144,11 +151,14 @@ export const sprintRouter = router({
   complete: projectProcedure
     .input(z.object({ projectId: z.string().uuid(), sprintId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const [updated] = await ctx.db
-        .update(sprints)
-        .set({ status: "COMPLETED" })
-        .where(eq(sprints.id, input.sprintId))
-        .returning();
+      const updated = firstOrThrow(
+        await ctx.db
+          .update(sprints)
+          .set({ status: "COMPLETED" })
+          .where(eq(sprints.id, input.sprintId))
+          .returning(),
+        "complete sprint"
+      );
 
       await ctx.db.insert(activityEvents).values({
         projectId: input.projectId,

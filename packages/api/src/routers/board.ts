@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { generateKeyBetween } from "fractional-indexing";
 import { boards, columns } from "@repo/db/schema";
 import { router, protectedProcedure, projectProcedure } from "../trpc";
+import { firstOrThrow } from "../lib/db-helpers";
 
 export const boardRouter = router({
   list: protectedProcedure
@@ -17,10 +18,13 @@ export const boardRouter = router({
   create: projectProcedure
     .input(z.object({ projectId: z.string().uuid(), name: z.string().min(1).max(255) }))
     .mutation(async ({ ctx, input }) => {
-      const [board] = await ctx.db
-        .insert(boards)
-        .values({ projectId: input.projectId, name: input.name })
-        .returning();
+      const board = firstOrThrow(
+        await ctx.db
+          .insert(boards)
+          .values({ projectId: input.projectId, name: input.name })
+          .returning(),
+        "insert board"
+      );
 
       // Seed a sensible default column set so a new board isn't empty.
       const defaults = ["Backlog", "To Do", "In Progress", "Done"];
@@ -36,11 +40,14 @@ export const boardRouter = router({
   rename: projectProcedure
     .input(z.object({ projectId: z.string().uuid(), boardId: z.string().uuid(), name: z.string().min(1).max(255) }))
     .mutation(async ({ ctx, input }) => {
-      const [updated] = await ctx.db
-        .update(boards)
-        .set({ name: input.name })
-        .where(eq(boards.id, input.boardId))
-        .returning();
+      const updated = firstOrThrow(
+        await ctx.db
+          .update(boards)
+          .set({ name: input.name })
+          .where(eq(boards.id, input.boardId))
+          .returning(),
+        "update board"
+      );
       return updated;
     }),
 

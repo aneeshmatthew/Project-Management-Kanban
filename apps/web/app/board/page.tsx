@@ -60,6 +60,7 @@ export default async function BoardPage({
       priority: task.priority,
       projectKey: project.key,
       taskNumber: task.number,
+      position: task.position,
       assignee: task.assignee
         ? { name: task.assignee.name, avatarUrl: task.assignee.avatarUrl }
         : null,

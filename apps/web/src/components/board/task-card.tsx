@@ -26,6 +26,7 @@ export interface TaskCardData {
   priority: "NONE" | "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   projectKey: string;
   taskNumber: number;
+  position: string;
   assignee: { name: string | null; avatarUrl: string | null } | null;
   owner: { name: string | null } | null;
   epic: { name: string; color: string | null } | null;

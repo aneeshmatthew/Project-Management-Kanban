@@ -2,6 +2,7 @@ import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { epics } from "@repo/db/schema";
 import { router, protectedProcedure, projectProcedure } from "../trpc";
+import { firstOrThrow } from "../lib/db-helpers";
 
 export const epicRouter = router({
   list: protectedProcedure
@@ -27,7 +28,10 @@ export const epicRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [epic] = await ctx.db.insert(epics).values(input).returning();
+      const epic = firstOrThrow(
+        await ctx.db.insert(epics).values(input).returning(),
+        "insert epic"
+      );
       return epic;
     }),
 
@@ -46,11 +50,10 @@ export const epicRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { epicId, projectId, ...patch } = input;
-      const [updated] = await ctx.db
-        .update(epics)
-        .set(patch)
-        .where(eq(epics.id, epicId))
-        .returning();
+      const updated = firstOrThrow(
+        await ctx.db.update(epics).set(patch).where(eq(epics.id, epicId)).returning(),
+        "update epic"
+      );
       return updated;
     }),
 });
