@@ -249,6 +249,7 @@ export function Board({
           <Column
             key={col.id}
             projectId={projectId}
+            boardId={boardId}
             column={col}
             visibleTasks={visibleTasksByColumn.get(col.id) ?? []}
             canMoveLeft={index > 0}

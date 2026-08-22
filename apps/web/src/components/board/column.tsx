@@ -5,6 +5,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { AnimatePresence } from "framer-motion";
 import { TaskCard, type TaskCardData } from "./task-card";
 import { ColumnHeader } from "./column-header";
+import { QuickAddTask } from "./quick-add-task";
 import { useBoardStore } from "@/stores/board-store";
 
 export interface ColumnData {
@@ -24,6 +25,7 @@ export interface ColumnData {
  */
 export function Column({
   projectId,
+  boardId,
   column,
   visibleTasks,
   canMoveLeft,
@@ -32,6 +34,7 @@ export function Column({
   onMoveRight,
 }: {
   projectId: string;
+  boardId: string;
   column: ColumnData;
   visibleTasks: TaskCardData[];
   canMoveLeft: boolean;
@@ -52,6 +55,15 @@ export function Column({
     column.tasks.length >= column.wipLimit;
 
   const isBlocked = isOver && wouldExceedLimit;
+
+  // Quick-add must respect the same limit as drag-and-drop — otherwise
+  // typing a title would be a silent backdoor around the exact rule
+  // handleDragEnd just finished blocking.
+  const isAtWipLimit = column.wipLimit != null && column.tasks.length >= column.wipLimit;
+
+  // True (unfiltered) last position in the column, so a new task always
+  // lands at the real bottom regardless of any active label filter.
+  const lastPosition = column.tasks.length > 0 ? column.tasks[column.tasks.length - 1]?.position ?? null : null;
 
   return (
     <div className="flex w-72 shrink-0 flex-col rounded-lg border border-border bg-canvas">
@@ -87,6 +99,19 @@ export function Column({
             ))}
           </AnimatePresence>
         </SortableContext>
+
+        {isAtWipLimit ? (
+          <p className="px-2 py-1.5 font-mono text-[10px] text-muted">
+            At WIP limit — move or finish a task to add another
+          </p>
+        ) : (
+          <QuickAddTask
+            projectId={projectId}
+            boardId={boardId}
+            columnId={column.id}
+            lastPosition={lastPosition}
+          />
+        )}
       </div>
     </div>
   );
