@@ -4,12 +4,14 @@ import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { AnimatePresence } from "framer-motion";
 import { TaskCard, type TaskCardData } from "./task-card";
+import { ColumnHeader } from "./column-header";
 import { useBoardStore } from "@/stores/board-store";
 
 export interface ColumnData {
   id: string;
   name: string;
   wipLimit: number | null;
+  position: string;
   tasks: TaskCardData[];
 }
 
@@ -21,15 +23,24 @@ export interface ColumnData {
  * `visibleTasks` is the (possibly filtered) list actually rendered.
  */
 export function Column({
+  projectId,
   column,
   visibleTasks,
+  canMoveLeft,
+  canMoveRight,
+  onMoveLeft,
+  onMoveRight,
 }: {
+  projectId: string;
   column: ColumnData;
   visibleTasks: TaskCardData[];
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
+  onMoveLeft: () => void;
+  onMoveRight: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   const activeTaskId = useBoardStore((s) => s.activeTaskId);
-  const overLimit = column.wipLimit != null && column.tasks.length > column.wipLimit;
 
   // A drop only increases this column's true count if the dragged task
   // doesn't already live here (a same-column reorder never changes it).
@@ -44,15 +55,17 @@ export function Column({
 
   return (
     <div className="flex w-72 shrink-0 flex-col rounded-lg border border-border bg-canvas">
-      <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
-        <h3 className="text-sm font-medium text-ink">{column.name}</h3>
-        <span
-          className={`font-mono text-xs ${overLimit ? "text-priority-urgent" : "text-muted"}`}
-        >
-          {column.tasks.length}
-          {column.wipLimit != null && `/${column.wipLimit}`}
-        </span>
-      </div>
+      <ColumnHeader
+        projectId={projectId}
+        columnId={column.id}
+        name={column.name}
+        wipLimit={column.wipLimit}
+        taskCount={column.tasks.length}
+        canMoveLeft={canMoveLeft}
+        canMoveRight={canMoveRight}
+        onMoveLeft={onMoveLeft}
+        onMoveRight={onMoveRight}
+      />
 
       <div
         ref={setNodeRef}

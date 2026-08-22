@@ -85,7 +85,8 @@ Check items off as they're built. Update this file directly as work lands.
 - [x] `task` router (create, move w/ fractional indexing, assign, setOwner, setTimeline, setEpic, setSprint, setStoryPoints, setLabels, getById, addComment)
 - [x] `epic` router (list, create, update)
 - [x] `sprint` router (list, planningBoard, burndown, create, start, complete)
-- [x] `board` router (get with columns/tasks, getFirstForProject)
+- [x] `board` router (list, create, rename, remove, get, getFirstForProject)
+- [x] `column` router (create, rename, setWipLimit, move, remove)
 - [x] `organization` router (getBySlug)
 - [x] `activity` router (list)
 - [x] `github` router + webhook route (signature verification, issue/comment sync)
@@ -135,7 +136,7 @@ Identified but not yet built — roughly ordered by portfolio impact:
 
 - [ ] Swimlanes (group board rows by epic/assignee/priority)
 - [x] WIP limits actually enforced on drop — blocked with a red column highlight + toast message, checked against the true (unfiltered) column state so an active label filter can't be used to sneak past the limit; seed sets "In Progress" to a limit of 1 so it's demonstrable immediately
-- [ ] Column management UI (create/rename/reorder/delete columns and boards)
+- [x] Column management UI — add column (dashed "+ Add column" tile), inline click-to-rename, WIP limit editing in a settings popover, delete with a confirm that warns about cascading task deletion, and move-left/move-right reordering via fractional index (`column` router: create/rename/setWipLimit/move/remove). Board-level: switcher dropdown (`?boardId=` query param) + "New board" inline create (`board.list`/`board.create`/`board.rename`/`board.remove`). Column reordering is button-based rather than drag-and-drop — full column drag was deferred to avoid entangling a second draggable "type" into the existing card DnDContext; noted as a possible follow-up, not done for scope reasons.
 - [ ] Quick-add task inline on the board (type a title, hit enter)
 - [x] Story points / estimation on tasks (`storyPoints` column, editable in the task panel, shown on Kanban and planning cards)
 - [x] Sprint burndown/velocity chart (`/burndown` — `sprint.burndown` query, recharts line chart, ideal-vs-actual; completion date is approximated from `task.updatedAt` when the task's current column is "Done" — see the caveat noted in `sprint.ts`, a task moved back out of Done loses its true completion date under this heuristic)

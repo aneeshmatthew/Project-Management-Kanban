@@ -2,17 +2,24 @@ import { appRouter } from "@repo/api";
 import { createContext } from "@/server/context";
 import { Board } from "@/components/board/board";
 import { TaskPanel } from "@/components/board/task-panel";
+import { BoardSwitcher } from "@/components/board/board-switcher";
 import type { ColumnData } from "@/components/board/column";
 
 const DEMO_ORG_SLUG = "acme-dev";
 
 /**
- * Demo route: resolves the seeded "acme-dev" org, its first project, and
- * that project's first board. In the real app this becomes
+ * Demo route: resolves the seeded "acme-dev" org and its first project.
+ * Which board is shown comes from ?boardId=, falling back to the
+ * project's first board. In the real app this becomes
  * /org/[orgSlug]/project/[projectKey]/board/[boardId], with ids resolved
- * from the URL instead of a hardcoded slug.
+ * from the URL path instead of a slug + query param.
  */
-export default async function BoardPage() {
+export default async function BoardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ boardId?: string }>;
+}) {
+  const { boardId: requestedBoardId } = await searchParams;
   const ctx = await createContext();
   const caller = appRouter.createCaller(ctx);
 
@@ -27,12 +34,17 @@ export default async function BoardPage() {
     return <EmptyState message="No project found for this org." />;
   }
 
-  const boardStub = await caller.board.getFirstForProject({ projectId: project.id });
-  if (!boardStub) {
+  const boardList = await caller.board.list({ projectId: project.id });
+  if (boardList.length === 0) {
     return <EmptyState message="No board found for this project." />;
   }
 
-  const board = await caller.board.get({ projectId: project.id, boardId: boardStub.id });
+  const activeBoardId =
+    requestedBoardId && boardList.some((b) => b.id === requestedBoardId)
+      ? requestedBoardId
+      : boardList[0]!.id; // safe: boardList.length === 0 already returned above
+
+  const board = await caller.board.get({ projectId: project.id, boardId: activeBoardId });
   if (!board) {
     return <EmptyState message="Board lookup failed." />;
   }
@@ -41,6 +53,7 @@ export default async function BoardPage() {
     id: col.id,
     name: col.name,
     wipLimit: col.wipLimit,
+    position: col.position,
     tasks: col.tasks.map((task) => ({
       id: task.id,
       title: task.title,
@@ -61,11 +74,15 @@ export default async function BoardPage() {
 
   return (
     <main className="min-h-screen bg-canvas">
-      <header className="border-b border-border px-4 py-3">
+      <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <h1 className="text-sm font-medium text-ink">
-          {project.name}{" "}
-          <span className="font-mono text-muted">/ {board.name}</span>
+          {project.name} <span className="font-mono text-muted">/ {board.name}</span>
         </h1>
+        <BoardSwitcher
+          projectId={project.id}
+          currentBoardId={board.id}
+          boards={boardList.map((b) => ({ id: b.id, name: b.name }))}
+        />
       </header>
       <Board projectId={project.id} boardId={board.id} columns={columns} />
       <TaskPanel projectId={project.id} />

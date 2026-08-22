@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -13,11 +14,13 @@ import {
 } from "@dnd-kit/core";
 import { generateKeyBetween } from "fractional-indexing";
 import { AnimatePresence, motion } from "framer-motion";
+import { Plus } from "lucide-react";
 import { Column, type ColumnData } from "./column";
 import { TaskCard, type TaskCardData } from "./task-card";
 import { useMoveTask } from "@/hooks/use-move-task";
 import { useBoardStore } from "@/stores/board-store";
 import { labelColor } from "@/lib/labels";
+import { trpc } from "@/lib/trpc-client";
 
 export function Board({
   projectId,
@@ -29,7 +32,12 @@ export function Board({
   columns: ColumnData[];
 }) {
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
+  const router = useRouter();
   const moveTask = useMoveTask(projectId, boardId);
+  const moveColumn = trpc.column.move.useMutation({ onSuccess: () => router.refresh() });
+  const createColumn = trpc.column.create.useMutation({ onSuccess: () => router.refresh() });
+  const [isAddingColumn, setIsAddingColumn] = useState(false);
+  const [newColumnName, setNewColumnName] = useState("");
   const dragTarget = useBoardStore((s) => s.dragTarget);
   const setDragTarget = useBoardStore((s) => s.setDragTarget);
   const setActiveTask = useBoardStore((s) => s.setActiveTask);
@@ -168,6 +176,30 @@ export function Board({
 
   const activeTask = activeTaskId ? taskColumnLookup.get(activeTaskId)?.task : null;
 
+  const sortedColumns = useMemo(
+    () => [...columns].sort((a, b) => a.position.localeCompare(b.position)),
+    [columns]
+  );
+
+  function handleMoveColumnLeft(index: number) {
+    if (index <= 0) return;
+    const target = sortedColumns[index];
+    const before = index >= 2 ? sortedColumns[index - 2]?.position ?? null : null;
+    const after = sortedColumns[index - 1]?.position ?? null;
+    if (!target) return;
+    moveColumn.mutate({ projectId, columnId: target.id, beforePosition: before, afterPosition: after });
+  }
+
+  function handleMoveColumnRight(index: number) {
+    if (index >= sortedColumns.length - 1) return;
+    const target = sortedColumns[index];
+    const before = sortedColumns[index + 1]?.position ?? null;
+    const after =
+      index + 2 < sortedColumns.length ? sortedColumns[index + 2]?.position ?? null : null;
+    if (!target) return;
+    moveColumn.mutate({ projectId, columnId: target.id, beforePosition: before, afterPosition: after });
+  }
+
   useEffect(() => {
     if (!blockedMessage) return;
     const timer = setTimeout(() => setBlockedMessage(null), 2500);
@@ -213,13 +245,51 @@ export function Board({
       )}
 
       <div className="flex gap-4 overflow-x-auto p-4">
-        {columns.map((col) => (
+        {sortedColumns.map((col, index) => (
           <Column
             key={col.id}
+            projectId={projectId}
             column={col}
             visibleTasks={visibleTasksByColumn.get(col.id) ?? []}
+            canMoveLeft={index > 0}
+            canMoveRight={index < sortedColumns.length - 1}
+            onMoveLeft={() => handleMoveColumnLeft(index)}
+            onMoveRight={() => handleMoveColumnRight(index)}
           />
         ))}
+
+        <div className="w-72 shrink-0">
+          {isAddingColumn ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const trimmed = newColumnName.trim();
+                if (!trimmed) return;
+                createColumn.mutate({ projectId, boardId, name: trimmed });
+                setNewColumnName("");
+                setIsAddingColumn(false);
+              }}
+              className="rounded-lg border border-border bg-canvas p-2"
+            >
+              <input
+                autoFocus
+                value={newColumnName}
+                onChange={(e) => setNewColumnName(e.target.value)}
+                onBlur={() => !newColumnName.trim() && setIsAddingColumn(false)}
+                placeholder="Column name…"
+                className="w-full rounded border border-priority-medium bg-panel px-2 py-1.5 text-sm text-ink placeholder:text-muted focus:outline-none"
+              />
+            </form>
+          ) : (
+            <button
+              onClick={() => setIsAddingColumn(true)}
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2.5 text-sm text-muted hover:border-priority-medium hover:text-ink"
+            >
+              <Plus size={14} />
+              Add column
+            </button>
+          )}
+        </div>
       </div>
 
       <DragOverlay>
