@@ -27,6 +27,7 @@ export interface TaskCardData {
   projectKey: string;
   taskNumber: number;
   position: string;
+  assigneeId: string | null;
   assignee: { name: string | null; avatarUrl: string | null } | null;
   owner: { name: string | null } | null;
   epic: { name: string; color: string | null } | null;

@@ -26,10 +26,12 @@ export function Board({
   projectId,
   boardId,
   columns,
+  currentUserId,
 }: {
   projectId: string;
   boardId: string;
   columns: ColumnData[];
+  currentUserId: string | null;
 }) {
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
   const router = useRouter();
@@ -45,6 +47,8 @@ export function Board({
   const labelFilters = useBoardStore((s) => s.labelFilters);
   const toggleLabelFilter = useBoardStore((s) => s.toggleLabelFilter);
   const clearLabelFilters = useBoardStore((s) => s.clearLabelFilters);
+  const assigneeFilter = useBoardStore((s) => s.assigneeFilter);
+  const setAssigneeFilter = useBoardStore((s) => s.setAssigneeFilter);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
@@ -63,21 +67,29 @@ export function Board({
   }, [columns]);
 
   // `columns` stays the source of truth (full task lists, used for WIP
-  // math and lookups). `visibleTasksByColumn` is the label-filtered view
-  // actually rendered — kept separate so filtering can never distort a
-  // WIP limit check.
+  // math and lookups). `visibleTasksByColumn` is the label- and
+  // assignee-filtered view actually rendered — kept separate so filtering
+  // can never distort a WIP limit check. Both filter dimensions are ANDed
+  // together: a task must match the label filter (if any) AND the
+  // assignee filter (if any) to stay visible.
   const visibleTasksByColumn = useMemo(() => {
     const map = new Map<string, TaskCardData[]>();
     for (const col of columns) {
-      map.set(
-        col.id,
-        labelFilters.length === 0
-          ? col.tasks
-          : col.tasks.filter((t) => t.labels.some((l) => labelFilters.includes(l)))
-      );
+      const filtered = col.tasks.filter((t) => {
+        const matchesLabel =
+          labelFilters.length === 0 || t.labels.some((l) => labelFilters.includes(l));
+        const matchesAssignee =
+          assigneeFilter === null
+            ? true
+            : assigneeFilter === "me"
+              ? t.assigneeId === currentUserId
+              : t.assigneeId === null;
+        return matchesLabel && matchesAssignee;
+      });
+      map.set(col.id, filtered);
     }
     return map;
-  }, [columns, labelFilters]);
+  }, [columns, labelFilters, assigneeFilter, currentUserId]);
 
   // Maps every task id -> its true current column id, built from the full
   // (unfiltered) data so drag interactions always resolve correctly.
@@ -213,36 +225,63 @@ export function Board({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      {allLabels.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-4 py-2">
-          <span className="font-mono text-[11px] text-muted">Filter:</span>
-          {allLabels.map((label) => {
-            const active = labelFilters.includes(label);
-            return (
-              <button
-                key={label}
-                onClick={() => toggleLabelFilter(label)}
-                className="rounded px-1.5 py-0.5 text-[10px] font-medium transition-opacity"
-                style={{
-                  backgroundColor: labelColor(label),
-                  color: "#0B0E14",
-                  opacity: active ? 1 : 0.35,
-                }}
-              >
-                {label}
-              </button>
-            );
-          })}
-          {labelFilters.length > 0 && (
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-4 py-2">
+        <span className="font-mono text-[11px] text-muted">Filter:</span>
+
+        <button
+          onClick={() => setAssigneeFilter("me")}
+          disabled={!currentUserId}
+          className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+            assigneeFilter === "me"
+              ? "bg-priority-medium text-canvas"
+              : "text-muted hover:text-ink"
+          } disabled:opacity-30`}
+        >
+          My tasks
+        </button>
+        <button
+          onClick={() => setAssigneeFilter("unassigned")}
+          className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+            assigneeFilter === "unassigned"
+              ? "bg-priority-medium text-canvas"
+              : "text-muted hover:text-ink"
+          }`}
+        >
+          Unassigned
+        </button>
+
+        {allLabels.length > 0 && <span className="mx-1 h-3 w-px bg-border" />}
+
+        {allLabels.map((label) => {
+          const active = labelFilters.includes(label);
+          return (
             <button
-              onClick={clearLabelFilters}
-              className="font-mono text-[10px] text-muted underline hover:text-ink"
+              key={label}
+              onClick={() => toggleLabelFilter(label)}
+              className="rounded px-1.5 py-0.5 text-[10px] font-medium transition-opacity"
+              style={{
+                backgroundColor: labelColor(label),
+                color: "#0B0E14",
+                opacity: active ? 1 : 0.35,
+              }}
             >
-              clear
+              {label}
             </button>
-          )}
-        </div>
-      )}
+          );
+        })}
+
+        {(labelFilters.length > 0 || assigneeFilter !== null) && (
+          <button
+            onClick={() => {
+              clearLabelFilters();
+              setAssigneeFilter(null);
+            }}
+            className="font-mono text-[10px] text-muted underline hover:text-ink"
+          >
+            clear
+          </button>
+        )}
+      </div>
 
       <div className="flex gap-4 overflow-x-auto p-4">
         {sortedColumns.map((col, index) => (

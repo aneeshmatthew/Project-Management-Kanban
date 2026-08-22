@@ -82,7 +82,7 @@ Check items off as they're built. Update this file directly as work lands.
 - [x] Drizzle schema (orgs, projects, epics, sprints, boards, columns, tasks, comments, attachments, activity, GitHub integration)
 - [x] tRPC base setup (context, `protectedProcedure`, `projectProcedure` permission middleware)
 - [x] `project` router (list, listMembers, create, connectGithubRepo, addMember)
-- [x] `task` router (create, move w/ fractional indexing, assign, setOwner, setTimeline, setEpic, setSprint, setStoryPoints, setLabels, getById, addComment)
+- [x] `task` router (create, move w/ fractional indexing, assign, setOwner, setTimeline, setEpic, setSprint, setStoryPoints, setLabels, getById, listAllForProject, addComment)
 - [x] `epic` router (list, create, update)
 - [x] `sprint` router (list, planningBoard, burndown, create, start, complete)
 - [x] `board` router (list, create, rename, remove, get, getFirstForProject)
@@ -145,8 +145,8 @@ Identified but not yet built — roughly ordered by portfolio impact:
 - [x] Labels/tags UI (deterministic per-label color, add/remove in task panel, filter bar on the board — OR-match across selected labels)
 - [ ] Real-time presence + live board sync across users
 - [ ] @mentions + notifications
-- [ ] Search and quick filters (my tasks, unassigned, by label)
-- [ ] Table/list view as an alternative to the board
+- [x] Quick filters on the board ("My tasks" / "Unassigned" toggle buttons, ANDed with label filters — `assigneeFilter` in the board store, `currentUserId` threaded from the server session)
+- [x] Table/list view (`/list` — sortable columns, title search, click a row to open the same task detail panel used on the board; `task.listAllForProject` query). Search is title-only for now — description and comment content aren't indexed/searched yet.
 - [ ] Undo, and archive-vs-delete distinction (deletes are currently hard deletes)
 - [ ] Large-board virtualization
 

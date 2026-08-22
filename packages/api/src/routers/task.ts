@@ -6,6 +6,23 @@ import { router, protectedProcedure, projectProcedure } from "../trpc";
 import { firstOrThrow } from "../lib/db-helpers";
 
 export const taskRouter = router({
+  /** All tasks in a project, joined with everything the list/table view shows. */
+  listAllForProject: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(({ ctx, input }) => {
+      return ctx.db.query.tasks.findMany({
+        where: (t, { eq }) => eq(t.projectId, input.projectId),
+        orderBy: (t, { asc }) => asc(t.number),
+        with: {
+          column: true,
+          assignee: true,
+          owner: true,
+          epic: true,
+          sprint: true,
+        },
+      });
+    }),
+
   getById: protectedProcedure
     .input(z.object({ taskId: z.string().uuid() }))
     .query(({ ctx, input }) => {

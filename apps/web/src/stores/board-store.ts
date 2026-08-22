@@ -8,16 +8,18 @@ interface DragTarget {
   previewPosition: string | null;
 }
 
+export type AssigneeFilter = "me" | "unassigned" | null;
+
 interface BoardState {
   activeTaskId: string | null;
   dragTarget: DragTarget | null;
-  assigneeFilter: string | null;
+  assigneeFilter: AssigneeFilter;
   labelFilters: string[];
   openTaskId: string | null;
 
   setActiveTask: (taskId: string | null) => void;
   setDragTarget: (target: DragTarget | null) => void;
-  setAssigneeFilter: (userId: string | null) => void;
+  setAssigneeFilter: (filter: AssigneeFilter) => void;
   toggleLabelFilter: (label: string) => void;
   clearLabelFilters: () => void;
   openTask: (taskId: string | null) => void;
@@ -32,7 +34,9 @@ export const useBoardStore = create<BoardState>((set) => ({
 
   setActiveTask: (taskId) => set({ activeTaskId: taskId }),
   setDragTarget: (target) => set({ dragTarget: target }),
-  setAssigneeFilter: (userId) => set({ assigneeFilter: userId }),
+  // Clicking an already-active filter turns it off — toggle, not just set.
+  setAssigneeFilter: (filter) =>
+    set((state) => ({ assigneeFilter: state.assigneeFilter === filter ? null : filter })),
   toggleLabelFilter: (label) =>
     set((state) => ({
       labelFilters: state.labelFilters.includes(label)

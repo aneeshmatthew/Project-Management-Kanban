@@ -60,6 +60,7 @@ function TaskPanelContent({
   const invalidate = () => {
     utils.task.getById.invalidate({ taskId });
     utils.board.get.invalidate();
+    utils.task.listAllForProject.invalidate({ projectId });
   };
 
   const setOwner = trpc.task.setOwner.useMutation({ onSuccess: invalidate });

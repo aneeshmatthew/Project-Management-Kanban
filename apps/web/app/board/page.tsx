@@ -61,6 +61,7 @@ export default async function BoardPage({
       projectKey: project.key,
       taskNumber: task.number,
       position: task.position,
+      assigneeId: task.assigneeId,
       assignee: task.assignee
         ? { name: task.assignee.name, avatarUrl: task.assignee.avatarUrl }
         : null,
@@ -85,7 +86,12 @@ export default async function BoardPage({
           boards={boardList.map((b) => ({ id: b.id, name: b.name }))}
         />
       </header>
-      <Board projectId={project.id} boardId={board.id} columns={columns} />
+      <Board
+        projectId={project.id}
+        boardId={board.id}
+        columns={columns}
+        currentUserId={ctx.session?.userId ?? null}
+      />
       <TaskPanel projectId={project.id} />
     </main>
   );
